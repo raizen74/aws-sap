@@ -5,19 +5,24 @@
   - [S3](#s3)
   - [API Gateway](#api-gateway)
   - [Cloudwatch Logs](#cloudwatch-logs)
+  - [Identity Center](#identity-center)
   - [IAM](#iam)
   - [SSM Patch Manager](#ssm-patch-manager)
   - [OpsWorks](#opsworks)
   - [CloudTrail](#cloudtrail)
   - [DMS](#dms)
+  - [Lambda](#lambda)
   - [Aurora](#aurora)
   - [RDS](#rds)
   - [KDS](#kds)
   - [Redshift](#redshift)
+  - [Kinesis Data Firehose](#kinesis-data-firehose)
   - [Organizations](#organizations)
+  - [Trusted Advisor](#trusted-advisor)
   - [EC2](#ec2)
   - [EBS](#ebs)
   - [ELB](#elb)
+  - [EFS](#efs)
   - [SQS](#sqs)
   - [KMS](#kms)
   - [Security Hub](#security-hub)
@@ -32,6 +37,7 @@
   - [WAF](#waf)
   - [Secrets Manager](#secrets-manager)
   - [SnowMobile](#snowmobile)
+  - [Snowball](#snowball)
   - [Storage](#storage)
   - [Migration Strategies](#migration-strategies)
 
@@ -74,6 +80,8 @@ NAT GW unsolicited inbound connections, you can run the query using only the fir
 
 **Outbound endpoint on Route 53 Resolver**: To resolve DNS queries for any resources in the on-premises network from the AWS VPC, you can create an outbound endpoint on Route 53 Resolver and then Route 53 Resolver can conditionally forward queries to resolvers on the on-premises network via this endpoint. To **conditionally forward queries**, you need to create **Resolver rules** that specify the domain names for the DNS queries that you want to forward (such as example.com) and the **IP addresses of the DNS resolvers on the on-premises network** that you want to forward the queries to.
 
+**VPC sharing** (part of Resource Access Manager) allows multiple AWS accounts to create their application resources such as EC2 instances, RDS databases, Redshift clusters, and Lambda functions, into shared and centrally-managed Amazon Virtual Private Clouds (VPCs). To set this up, the account that owns the VPC (owner) shares one or more subnets with other accounts (participants) that belong to the same organization from AWS Organizations. After a subnet is shared, the participants can view, create, modify, and delete their application resources in the subnets shared with them. Participants cannot view, modify, or delete resources that belong to other participants or the VPC owner.
+
 ## S3
 
 **Byte Range Fetch**:
@@ -87,9 +95,23 @@ When data is transfered out to Cloudfront, its **free**.
 !["S3 transitions"](S3-transitions.jpg)
 !["S3 Classes"](s3-classes.jpg)
 
+Object logging:
+!["S3 Object Logging"](s3-object-logging.jpg)
+
+S3 notifications:
+!["S3 Notifications"](s3-notifications.jpg)
+
+Access Analyzer:
+!["S3 Access Analyzer"](s3-access-analyzer.jpg)
+
 ## API Gateway
 
 !["API Gateway"](api.jpg)
+
+Error codes:
+!["API Gateway Error Codes"](code-errors.jpg)
+
+`HTTPs APIs` only support **access logs**, they do **NOT** support **execution logs**.
 
 **Usage Plans** can be defined at the API or API method level. When request submissions exceed the steady-state request rate and **burst limits**, API Gateway begins to throttle requests.
 
@@ -98,6 +120,10 @@ When data is transfered out to Cloudfront, its **free**.
 ## Cloudwatch Logs
 
 **CWLogs Subscription Filter**: You can use a subscription filter with **Kinesis Streams**, **Lambda**, or **Kinesis Data Firehose**. Logs that are sent to a receiving service through a subscription filter are **Base64 encoded and compressed with the gzip format**.
+
+## Identity Center
+
+!["SAML"](SAML.jpg)
 
 ## IAM
 
@@ -123,6 +149,8 @@ AWS OpsWorks is a configuration management service that provides managed instanc
 
 **AWS CloudTrail data events** capture the last 90 days of bucket-level events (for example, `PutBucketPolicy` and `DeleteBucketPolicy`), and you can enable object-level logging. These logs use a JSON format. After you enable object-level logging with data events, review the logs to find the IP addresses used with each upload to your bucket. It might take a few hours for AWS CloudTrail to start creating logs.
 
+!["CloudTrail events"](cloudtrail-events.jpg)
+
 ## DMS
 
 RDS to Redshift: The Amazon Redshift cluster must be in the same AWS account and the same AWS Region as the DMS replication instance. During a database migration to Amazon Redshift, AWS DMS first moves data to an Amazon S3 bucket. When the files reside in an Amazon S3 bucket, AWS DMS then transfers them to the proper tables in the Amazon Redshift data warehouse. AWS DMS creates the S3 bucket in the same AWS Region as the Amazon Redshift database.
@@ -133,7 +161,13 @@ You can use **AWS DMS data validation** to ensure that your data has migrated ac
 
 Premigration assessment: A premigration assessment evaluates specified components of a database migration task to help identify any problems that might prevent a migration task from running as expected. This assessment gives you a chance to identify issues before you run a new or modified task. You can then fix problems before they occur while running the migration task itself. This can avoid delays in completing a given database migration needed to repair data and your database environment.
 
+## Lambda
+
+!["Lambda Limits"](lambda-limits.jpg)
+
 ## Aurora
+
+!["Aurora Global"](aurora.jpg)
 
 **Aurora Auto Scaling** dynamically adjusts the number of Aurora **Replicas** provisioned for an Aurora DB cluster using **single-master replication**.
 
@@ -159,6 +193,12 @@ You define and apply a **scaling policy** to an Aurora DB cluster. The scaling p
 
 Using Amazon **Redshift Spectrum**, you can efficiently query and retrieve structured and semistructured data from files in Amazon S3 without having to load the data into Amazon Redshift tables. Amazon Redshift Spectrum resides on dedicated Amazon Redshift servers that are independent of your cluster. Redshift Spectrum pushes many compute-intensive tasks, such as predicate filtering and aggregation, down to the Redshift Spectrum layer. Thus, Redshift Spectrum queries use less of your cluster's processing capacity than other queries.
 
+!["Redshift"](redshift-1.jpg)
+
+## Kinesis Data Firehose
+
+When a Kinesis data stream is configured as the source of a Firehose delivery stream, Firehose’s PutRecord and PutRecordBatch operations are disabled and Kinesis Agent cannot write to Firehose delivery stream directly. Data needs to be added to the Kinesis data stream through the Kinesis Data Streams PutRecord and PutRecords operations instead.
+
 ## Organizations
 
 SCPs:
@@ -172,6 +212,10 @@ Set a budget alert and move the exceeding budget account to a restricted OU
 !["Budgets"](budgets.jpg)
 
 GuardDuty: When you use GuardDuty with an AWS Organizations organization, you can designate any account within the organization to be the GuardDuty delegated administrator. **Only** the organization **management account can designate GuardDuty delegated administrators**. An account that is designated as a delegated administrator becomes a **GuardDuty administrator account**, has GuardDuty automatically enabled in the designated Region and is granted permission to enable and **manage GuardDuty for all accounts in the organization within that Region**. The other accounts in the organization can be viewed and added as GuardDuty member accounts associated with the delegated administrator account.
+
+## Trusted Advisor
+
+!["Trusted advisor"](trusted-advisor.jpg)
 
 ## EC2
 
@@ -196,6 +240,10 @@ Provisioned IOPS: You can provision from 100 IOPS up to 64,000 IOPS per volume o
 For TCP traffic, the NLB selects a target using a **flow hash algorithm** based on the protocol, source IP address, source port, destination IP address, destination port, and TCP sequence number. The TCP connections from a client have different source ports and sequence numbers and can be routed to different targets. Each TCP connection is routed to a single target for the life of the connection.
 
 For UDP traffic, the NLB selects a target using a **flow hash algorithm** based on the protocol, source IP address, source port, destination IP address, and destination port. A UDP flow has the same source and destination, so it is consistently routed to a single target throughout its lifetime. Different UDP flows have different source IP addresses and ports, so they can be routed to different targets.
+
+## EFS
+
+!["EFS"](efs.jpg)
 
 ## SQS
 
@@ -226,6 +274,9 @@ In most situations, **you deploy the agent as a virtual machine in the same loca
 
 S3 File GW: Storage Gateway updates the file share cache automatically when you write files to the cache locally using the file share. However, **Storage Gateway doesn't automatically update the cache when you upload a file directly to Amazon S3**. When you do this, you must perform a `RefreshCache` operation to see the changes on the file share. If you have more than one file share, then you must run the `RefreshCache` operation on each file share.
 
+Volume Gateway:
+!["Volume GW"](volume-gw.jpg)
+
 ## FSx
 
 In a Multi-AZ deployment, Amazon FSx automatically provisions and maintains a standby file server in a different Availability Zone. Any changes written to disk in your file system are synchronously replicated across Availability Zones to the standby. If there is planned file system maintenance or unplanned service disruption, Amazon FSx automatically fails over to the secondary file server, allowing you to continue accessing your data without manual intervention.
@@ -244,9 +295,17 @@ Route 53 is also designed to withstand DNS query floods, which are real DNS requ
 
 ## CloudFront
 
+!["CloudFront signed-urls"](signed-urls.jpg)
+
+For **uploads**, you can use the `POST` and `PUT` methods for your CloudFront distribution to **accelerate content uploads to the origin**, which is S3 for the given use-case.
+
 To avoid the **307 Temporary Redirect response**, send requests only to the Regional endpoint in the same Region as your S3 bucket. CloudFront forwards requests to the default S3 endpoint ( s3.amazonaws.com). The default S3 endpoint is in the us-east-1 Region. If you must access Amazon S3 within the first 24 hours of creating the bucket, you can change the origin domain name of the distribution. The domain name must include the Regional endpoint of the bucket. For example, if the bucket is in us-west-2, you can change the origin domain name from `awsexamplebucketname.s3.amazonaws.com` to `awsexamplebucket.s3.us-west-2.amazonaws.com`.
 
+Proxy methods **PUT/POST/PATCH/OPTIONS/DELETE** go directly to the origin from the POPs and do not proxy through the **regional edge caches**.
+
 ## Global Accelerator
+
+With AWS Global Accelerator, you can shift traffic gradually or all at once between the blue and the green environment and vice-versa without being subject to DNS caching on client devices and internet resolvers, traffic dials and endpoint weights changes are effective within seconds.
 
 AWS Global Accelerator is a service that improves the availability and performance of your applications with local or global users. It provides **2 static IP addresses that act as a fixed entry point to your application endpoints in a single or multiple AWS Regions**, such as your Application Load Balancers, Network Load Balancers or Amazon EC2 instances.
 
@@ -291,6 +350,10 @@ Steps that need to be followed:
 ## SnowMobile
 
 For datasets > 10 PB
+
+## Snowball
+
+!["Snowball vs S3 Transfer Acceleration"](snowball.jpg)
 
 ## Storage
 
