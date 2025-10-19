@@ -10,7 +10,7 @@
   - [SSM Patch Manager](#ssm-patch-manager)
   - [OpsWorks](#opsworks)
   - [CloudTrail](#cloudtrail)
-  - [DMS](#dms)
+  - [Data Migration Service DMS](#data-migration-service-dms)
   - [Lambda](#lambda)
   - [Aurora](#aurora)
   - [RDS](#rds)
@@ -42,6 +42,18 @@
   - [Migration Strategies](#migration-strategies)
 
 ## VPC
+
+Gateway vs Interface Endpoints: **Gateway endpoint uses Amazon S3 public IP addresses and does not allow access from on-premises systems**. A gateway endpoint is a gateway that you specify in your route table to access Amazon S3 from your VPC over the AWS network. **Interface endpoints** extend the functionality of gateway endpoints by using **private IP addresses** to route requests to Amazon S3 from within your **VPC**, **on-premises**, or from a **VPC in another AWS Region using VPC peering or AWS Transit Gateway**. Interface endpoints are compatible with gateway endpoints. If you have an existing gateway endpoint in the VPC, you can use both types of endpoints in the same VPC.
+
+!["Interface vs Gateway Endpoints"](interface-gateway.jpg)
+
+**VPC Flow log data** can be published to **Amazon CloudWatch Logs** or **Amazon S3**. You can create a flow log for a **VPC**, a **subnet**, or a **network interface**. If you create a flow log for a subnet or VPC, each network interface in that subnet or VPC is monitored. VPC Flow Logs **cannot be used to inspect the network packets**.
+
+!["VPC Flow Logs example"](vpc-logs.jpg)
+
+Good to know: Amazon EC2 instances running with an Amazon VPC have built-in protection against packet sniffing. It is not possible for a virtual instance running in promiscuous mode to receive or “sniff” traffic that is intended for a different virtual instance. While customers can place their interfaces into promiscuous mode, the hypervisor will not deliver any traffic to them that is not addressed to them. Even two virtual instances that are owned by the same customer located on the same physical host cannot listen to each other’s traffic
+
+**Virtual Private Gateway**: For AWS Site-to-Site VPN connections, a virtual private gateway is the VPN concentrator on the Amazon side of the Site-to-Site VPN connection. You use a virtual private gateway or a transit gateway as the gateway for the Amazon side of the Site-to-Site VPN connection. For Direct Connect connections, you can use an **AWS Direct Connect gateway** to **connect your AWS Direct Connect connection over a private VIF to one or more VPCs** in any account that are located in the **same or different Regions**. **You associate a Direct Connect gateway with the virtual private gateway for the VPC**. The virtual private gateway must be attached to the VPC to which you want to connect.
 
 DX + s2s VPN: **Dedicated and encrypted connection**
 !["DX + VPN"](dx-vpn.png)
@@ -89,7 +101,11 @@ You can use concurrent connections to Amazon S3 to fetch different byte ranges f
 
 S3 Select ScanRange.
 
-When data is transfered out to Cloudfront, its **free**.
+**S3 Select**: **Cheaper than Athena**. S3 Select simplifies and improves the performance of scanning and filtering the contents of objects into a smaller, targeted dataset by up to 400%. You can use S3 Select to retrieve a subset of data using SQL clauses, like SELECT and WHERE, from objects stored in `CSV`, `JSON`, or `Apache Parquet` format. It also works with **objects that are compressed** with `GZIP` or `BZIP2` **(for CSV and JSON objects only)** and server-side encrypted objects.
+
+**S3 Glacier Select**: You can use SQL commands to query S3 Glacier archive objects that are in the **UNCOMPRESSED** CSV format
+
+When data is transfered out from S3 to Cloudfront, its **free**.
 
 **S3 standard IA has a minimum storage duration charge of 30 days** thereby making it costlier than using S3 Standard storage class for the given scenario because the data would be moved to Glacier via a Lifecycle policy immediately.
 !["S3 transitions"](S3-transitions.jpg)
@@ -147,13 +163,21 @@ AWS OpsWorks is a configuration management service that provides managed instanc
 
 ## CloudTrail
 
+When you enable **log file integrity validation**, CloudTrail creates a hash for every log file that it delivers. Every hour, CloudTrail also creates and delivers a file that references the log files for the last hour and contains a hash of each. This file is called a digest file. **CloudTrail signs each digest file using the private key of a public and private key pair**. After delivery, you can use the public key to validate the digest file. **CloudTrail uses different key pairs for each AWS region**.
+
+The **digest files** are delivered to the **same Amazon S3 bucket** associated with your trail as your **CloudTrail log files**
+
 **AWS CloudTrail data events** capture the last 90 days of bucket-level events (for example, `PutBucketPolicy` and `DeleteBucketPolicy`), and you can enable object-level logging. These logs use a JSON format. After you enable object-level logging with data events, review the logs to find the IP addresses used with each upload to your bucket. It might take a few hours for AWS CloudTrail to start creating logs.
 
 !["CloudTrail events"](cloudtrail-events.jpg)
 
-## DMS
+## Data Migration Service DMS
+
+If you use the AWS DMS **console to create the endpoint, then DMS creates the required IAM roles and policies automatically**. If you use the AWS Command Line Interface (AWS CLI) or the AWS DMS API, you must create the IAM roles and policies manually.
 
 RDS to Redshift: The Amazon Redshift cluster must be in the same AWS account and the same AWS Region as the DMS replication instance. During a database migration to Amazon Redshift, AWS DMS first moves data to an Amazon S3 bucket. When the files reside in an Amazon S3 bucket, AWS DMS then transfers them to the proper tables in the Amazon Redshift data warehouse. AWS DMS creates the S3 bucket in the same AWS Region as the Amazon Redshift database.
+
+!["DMS Redshift"](dms-redshift.jpg)
 
 You can use **AWS DMS data validation** to ensure that your data has migrated accurately from the source to the target. DMS compares the source and target records and then reports any mismatches. In addition, for a CDC-enabled task, AWS DMS compares the incremental changes and reports any mismatches. As part of data validation, DMS compares each row in the source with its corresponding row at the target and verifies that those rows contain the same data. **For this comparison, DMS issues appropriate queries to retrieve the data**. These queries consume additional resources at the source and the target as well as additional network resources.
 
@@ -195,6 +219,10 @@ Using Amazon **Redshift Spectrum**, you can efficiently query and retrieve struc
 
 !["Redshift"](redshift-1.jpg)
 
+**Audit logging** is not turned on by default in Amazon Redshift. When you turn on logging on your cluster, Amazon Redshift creates and uploads logs to Amazon S3 that capture data from the time audit logging is enabled to the present time. Each logging update is a continuation of the information that was already logged.
+
+Audit logging to Amazon S3 is an optional, manual process. When you enable logging on your cluster, you are enabling logging to Amazon S3 only. Currently, **you can only use Amazon S3-managed keys (SSE-S3) encryption (AES-256) for audit logging**.
+
 ## Kinesis Data Firehose
 
 When a Kinesis data stream is configured as the source of a Firehose delivery stream, Firehose’s PutRecord and PutRecordBatch operations are disabled and Kinesis Agent cannot write to Firehose delivery stream directly. Data needs to be added to the Kinesis data stream through the Kinesis Data Streams PutRecord and PutRecords operations instead.
@@ -234,6 +262,8 @@ Provisioned IOPS: You can provision from 100 IOPS up to 64,000 IOPS per volume o
 !["Provisioned IOPS"](provisioned-iops.jpg)
 
 ## ELB
+
+**Access Logs** are stored in **S3** buckets and it is **not possible** to directly write the logs to **Kinesis Data Firehose**.
 
 **NLB does not support Least Outstanding Requests routing algorithm**. AWS suggests using the Least Outstanding Requests with an ALB when the requests for your application vary in complexity or your targets vary in processing capability.
 
@@ -287,6 +317,23 @@ You can test the **failover** of your Multi-AZ file system by **modifying its th
 
 ## Route 53
 
+Route 53 Health Checks:
+
+- Route 53 must be able to establish a TCP connection with the endpoint within 4 seconds. In addition, the endpoint must respond with an HTTP status code of 2xx or 3xx within 2 seconds after connecting. **HTTPS health checks don't validate SSL/TLS certificates**, so checks don't fail if a certificate is invalid or expired.
+- If you choose **HTTPS** for the value of `Protocol` in Route53 configuration, an **additional charge applies**.
+- **After you create a Health Check, you can't change the value of** `String matching`. If you choose Yes for the value of `String matching`, **an additional charge applies**. The search string must appear entirely **within the first 5,120 bytes of the response body**.
+- If you specify the endpoint by **domain name**, Route 53 uses **only IPv4** to send health checks to the endpoint.
+- If you specify a **non-AWS endpoint**, **an additional charge applies**.
+- Charges for a health check apply even when the health check is **disabled**.
+- Route 53 **aggregates** the data from the health checkers, and if more than **18% of health checkers** report that an endpoint is healthy, Route 53 considers it healthy
+- If you're routing traffic to any AWS resources that you can create **alias records** for, don't create health checks for those resources. When you create the alias records, you set `Evaluate Target Health` to `Yes` instead.
+- If no records are healthy, Route 53 considers all the records in the group to be healthy and selects one based on the routing policy and on the values that you specify for each record
+
+If you're creating failover records in a **private hosted zone**, note the following:
+
+1. **Route 53 health checkers are outside the VPC**. To check the health of an endpoint within a VPC by IP address, you must assign a public IP address to an instance in the VPC.
+2. You can create a CloudWatch metric, associate an alarm with the metric, and then create a health check that is based on the data stream for the alarm.
+
 Route 53 DNS requests and subsequent application traffic routed through CloudFront are inspected inline. Always-on monitoring, anomaly detection, and mitigation against common infrastructure DDoS attacks such as SYN/ACK floods, UDP floods, and **reflection attacks are built into both Route 53 and CloudFront**.
 
 Route 53 is also designed to withstand DNS query floods, which are real DNS requests that can continue for hours and attempt to exhaust DNS server resources. Route 53 uses shuffle sharding and anycast striping to spread DNS traffic across edge locations and help protect the availability of the service.
@@ -303,6 +350,8 @@ To avoid the **307 Temporary Redirect response**, send requests only to the Regi
 
 Proxy methods **PUT/POST/PATCH/OPTIONS/DELETE** go directly to the origin from the POPs and do not proxy through the **regional edge caches**.
 
+Origin Access Control (OAC) works only for s3, it does not support custom origins.
+
 ## Global Accelerator
 
 With AWS Global Accelerator, you can shift traffic gradually or all at once between the blue and the green environment and vice-versa without being subject to DNS caching on client devices and internet resolvers, traffic dials and endpoint weights changes are effective within seconds.
@@ -311,13 +360,21 @@ AWS Global Accelerator is a service that improves the availability and performan
 
 !["Global Accelerator"](AGA.jpg)
 
+**Custom Routing Accelerator**: A new type of accelerator in Global Accelerator. It allows you to use your own application logic to deterministically route one or more users to a specific Amazon EC2 instance destination in a single or multiple AWS Regions. This is useful for use cases where you want to **control which session on an EC2 instance your user traffic is sent to**. You can direct multiple users to a unique port on your accelerator, and their traffic will be routed to a specific destination IP address and port that your application session is running on.
+
+Custom routing accelerators **support only VPC subnet endpoints**, each containing one or more EC2 instances that are running your application. Each VPC subnet endpoint, which could be in a single or multiple Regions, contains the IP addresses of the EC2 instances that host your application. With a custom routing accelerator, you can put your accelerator in front of up to thousands of EC2 instances running in a single or multiple VPCs. Custom routing accelerators support VPC subnet endpoints with a maximum size of /17 and route traffic only to EC2 instances within each subnet.
+
 ## GuardDuty
 
 GuardDuty is an intelligent threat detection service that continuously monitors your **AWS accounts, Amazon Elastic Compute Cloud (EC2) instances, Amazon Elastic Kubernetes Service (EKS) clusters, and data stored in Amazon Simple Storage Service (S3)** for malicious activity without the use of security software or agents. GuardDuty generates detailed security findings that can be used for security visibility and assisting in remediation. GuardDuty can monitor reconnaissance activities by an attacker such as unusual API activity, intra-VPC port scanning, unusual patterns of failed login requests, or unblocked port probing from a known bad IP.
 
 ## Inspector
 
-Amazon Inspector is an automated vulnerability management service that continually scans Amazon Elastic Compute Cloud (EC2) and container workloads for software vulnerabilities and unintended network exposure.
+You can enable Amazon Inspector for your entire organization or an individual account with a few clicks in the AWS Management Console. Once enabled, Amazon Inspector automatically discovers running Amazon EC2 instances and Amazon ECR repositories and immediately starts continually scanning workloads for software vulnerabilities and unintended network exposure.
+
+**Amazon Inspector uses the Systems Manager (SSM) agent** to collect the software application inventory of the Amazon EC2 instances.
+
+Network Reachability rules package in Amazon Inspector: The findings also have recommendations that include information about exactly which Security Group you can edit to remove the access. And like all Amazon Inspector findings, these can be **published to an SNS topic** for additional processing.
 
 ## WAF
 
@@ -329,7 +386,7 @@ Amazon Inspector is an automated vulnerability management service that continual
 
 !["WAF Geomatch"](waf-geomatch.jpg)
 
-The logging destinations that you can choose from for your AWS WAF logs are:
+The logging destinations that you can choose from for your AWS WAF logs are, same destinations as VPC Flow Logs:
 
 - CloudWatch Logs
 - S3
