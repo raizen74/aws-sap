@@ -30,6 +30,8 @@
   - [Storage Gateway](#storage-gateway)
   - [FSx](#fsx)
   - [Route 53](#route-53)
+    - [Route 53 Health Checks](#route-53-health-checks)
+    - [Route 53 Resolvers](#route-53-resolvers)
   - [CloudFront](#cloudfront)
   - [Global Accelerator](#global-accelerator)
   - [GuardDuty](#guardduty)
@@ -39,9 +41,14 @@
   - [SnowMobile](#snowmobile)
   - [Snowball](#snowball)
   - [Storage](#storage)
+  - [Application Discovery Service](#application-discovery-service)
+  - [Application Migration Service (MGM)](#application-migration-service-mgm)
   - [Migration Strategies](#migration-strategies)
+  - [QuickSight enterprise edition](#quicksight-enterprise-edition)
 
 ## VPC
+
+AWS allows **CIDR range only between /28 and /16**
 
 Gateway vs Interface Endpoints: **Gateway endpoint uses Amazon S3 public IP addresses and does not allow access from on-premises systems**. A gateway endpoint is a gateway that you specify in your route table to access Amazon S3 from your VPC over the AWS network. **Interface endpoints** extend the functionality of gateway endpoints by using **private IP addresses** to route requests to Amazon S3 from within your **VPC**, **on-premises**, or from a **VPC in another AWS Region using VPC peering or AWS Transit Gateway**. Interface endpoints are compatible with gateway endpoints. If you have an existing gateway endpoint in the VPC, you can use both types of endpoints in the same VPC.
 
@@ -55,7 +62,8 @@ Good to know: Amazon EC2 instances running with an Amazon VPC have built-in prot
 
 **Virtual Private Gateway**: For AWS Site-to-Site VPN connections, a virtual private gateway is the VPN concentrator on the Amazon side of the Site-to-Site VPN connection. You use a virtual private gateway or a transit gateway as the gateway for the Amazon side of the Site-to-Site VPN connection. For Direct Connect connections, you can use an **AWS Direct Connect gateway** to **connect your AWS Direct Connect connection over a private VIF to one or more VPCs** in any account that are located in the **same or different Regions**. **You associate a Direct Connect gateway with the virtual private gateway for the VPC**. The virtual private gateway must be attached to the VPC to which you want to connect.
 
-DX + s2s VPN: **Dedicated and encrypted connection**
+DX + s2s VPN: **Dedicated and encrypted connection**.
+Only AWS Direct Connect **public VIF** can be used to establish a dedicated network connection between your network to public AWS resources, such as an Amazon virtual private gateway IPsec endpoint.
 !["DX + VPN"](dx-vpn.png)
 
 VPC Interface endpoint policies:
@@ -90,9 +98,9 @@ NAT GW unsolicited inbound connections, you can run the query using only the fir
 
 **Private hosted zones** accept DNS queries only from a VPC DNS server. The IP address of the VPC DNS server is the reserved IP address at the base of the VPC IPv4 network range plus two. Enabling DNS resolution allows you to use the VPC DNS server as a Resolver for performing DNS resolution. Keep this option disabled if you're using a custom DNS server in the DHCP Options set, and you're not using a private hosted zone.
 
-**Outbound endpoint on Route 53 Resolver**: To resolve DNS queries for any resources in the on-premises network from the AWS VPC, you can create an outbound endpoint on Route 53 Resolver and then Route 53 Resolver can conditionally forward queries to resolvers on the on-premises network via this endpoint. To **conditionally forward queries**, you need to create **Resolver rules** that specify the domain names for the DNS queries that you want to forward (such as example.com) and the **IP addresses of the DNS resolvers on the on-premises network** that you want to forward the queries to.
-
 **VPC sharing** (part of Resource Access Manager) allows multiple AWS accounts to create their application resources such as EC2 instances, RDS databases, Redshift clusters, and Lambda functions, into shared and centrally-managed Amazon Virtual Private Clouds (VPCs). To set this up, the account that owns the VPC (owner) shares one or more subnets with other accounts (participants) that belong to the same organization from AWS Organizations. After a subnet is shared, the participants can view, create, modify, and delete their application resources in the subnets shared with them. Participants cannot view, modify, or delete resources that belong to other participants or the VPC owner.
+
+Connect on-premises instances to s3 privately: To access S3 using a private IP address over Direct Connect, you can create a private virtual interface for your connection and then create an interface VPC endpoint for S3 in your VPC that is associated with the virtual private gateway. The VGW must connect to a Direct Connect private virtual interface. This interface VPC endpoint resolves to a private IP address even if you enable a VPC endpoint for S3. When you access Amazon S3, you need to use the same DNS name provided under the details of the VPC endpoint.
 
 ## S3
 
@@ -146,6 +154,8 @@ Error codes:
 **IAM Access Analyzer** analyzes CloudTrail logs to determine whether external access is granted. Both IAM Access Analyzer and Macie findings can be reported in Security Hub. Security Hub has integration with Organizations, so you can use one single Security Hub dashboard to monitor for both security issues in one place.
 
 **Permission Boundaries**: You can attach permissions boundaries only to a **user** or **role**, **not a group**.
+
+The `NotAction` element enables you to list services whose operations (or individual operations) are **EXEMPTED** from this restriction
 
 ## SSM Patch Manager
 
@@ -271,6 +281,10 @@ For TCP traffic, the NLB selects a target using a **flow hash algorithm** based 
 
 For UDP traffic, the NLB selects a target using a **flow hash algorithm** based on the protocol, source IP address, source port, destination IP address, and destination port. A UDP flow has the same source and destination, so it is consistently routed to a single target throughout its lifetime. Different UDP flows have different source IP addresses and ports, so they can be routed to different targets.
 
+**Load Balance traffic from a centralized VPC to 2 private Subnets**: you need to configure each NLB as an `AWS PrivateLink endpoint service` with associated VPC endpoints in the centralized VPC and then have the Application Load Balancer (ALB) in the centralized VPC point their target groups to the private IP addresses of each VPC endpoint. Finally, you will configure host-based routing on the ALB to route each application's traffic to the corresponding target group.
+
+!["AWS privatelink"](privatelink.jpg)
+
 ## EFS
 
 !["EFS"](efs.jpg)
@@ -293,6 +307,7 @@ You cannot use AWS Security Hub to manage AWS WAF rules across accounts in the o
 ## DataSync
 
 !["DataSync"](datasync.png)
+!["DataSync"](datasync.jpg)
 
 DataSync copies data over the internet or AWS Direct Connect.
 
@@ -309,7 +324,7 @@ Volume Gateway:
 
 ## FSx
 
-In a Multi-AZ deployment, Amazon FSx automatically provisions and maintains a standby file server in a different Availability Zone. Any changes written to disk in your file system are synchronously replicated across Availability Zones to the standby. If there is planned file system maintenance or unplanned service disruption, Amazon FSx automatically fails over to the secondary file server, allowing you to continue accessing your data without manual intervention.
+In a Multi-AZ deployment, Amazon FSx automatically provisions and maintains a standby file server in a different Availability Zone. Any changes written to disk in your file system are **synchronously** replicated across Availability Zones to the standby. If there is planned file system maintenance or unplanned service disruption, Amazon FSx automatically fails over to the secondary file server, allowing you to continue accessing your data without manual intervention.
 
 You can test the **failover** of your Multi-AZ file system by **modifying its throughput capacity**. When you modify your file system's throughput capacity, Amazon FSx switches out the file system's file server.
 
@@ -317,8 +332,16 @@ You can test the **failover** of your Multi-AZ file system by **modifying its th
 
 ## Route 53
 
-Route 53 Health Checks:
+Route 53 DNS requests and subsequent application traffic routed through CloudFront are inspected inline. Always-on monitoring, anomaly detection, and mitigation against common infrastructure DDoS attacks such as SYN/ACK floods, UDP floods, and **reflection attacks are built into both Route 53 and CloudFront**.
 
+Route 53 is also designed to withstand DNS query floods, which are real DNS requests that can continue for hours and attempt to exhaust DNS server resources. Route 53 uses shuffle sharding and anycast striping to spread DNS traffic across edge locations and help protect the availability of the service.
+
+!["Routing policy"](routing.jpg)
+
+### Route 53 Health Checks
+
+- Can monitor: The health of a specified resource, such as a web server, the **status of other health checks** or the status of an **Amazon CloudWatch alarm** (use it to monitor resources in Private Hosted Zones).
+- !["Health Checks"](types-healthchecks.jpg)
 - Route 53 must be able to establish a TCP connection with the endpoint within 4 seconds. In addition, the endpoint must respond with an HTTP status code of 2xx or 3xx within 2 seconds after connecting. **HTTPS health checks don't validate SSL/TLS certificates**, so checks don't fail if a certificate is invalid or expired.
 - If you choose **HTTPS** for the value of `Protocol` in Route53 configuration, an **additional charge applies**.
 - **After you create a Health Check, you can't change the value of** `String matching`. If you choose Yes for the value of `String matching`, **an additional charge applies**. The search string must appear entirely **within the first 5,120 bytes of the response body**.
@@ -334,11 +357,15 @@ If you're creating failover records in a **private hosted zone**, note the follo
 1. **Route 53 health checkers are outside the VPC**. To check the health of an endpoint within a VPC by IP address, you must assign a public IP address to an instance in the VPC.
 2. You can create a CloudWatch metric, associate an alarm with the metric, and then create a health check that is based on the data stream for the alarm.
 
-Route 53 DNS requests and subsequent application traffic routed through CloudFront are inspected inline. Always-on monitoring, anomaly detection, and mitigation against common infrastructure DDoS attacks such as SYN/ACK floods, UDP floods, and **reflection attacks are built into both Route 53 and CloudFront**.
+### Route 53 Resolvers
 
-Route 53 is also designed to withstand DNS query floods, which are real DNS requests that can continue for hours and attempt to exhaust DNS server resources. Route 53 uses shuffle sharding and anycast striping to spread DNS traffic across edge locations and help protect the availability of the service.
+When you create a VPC, the Route 53 Resolver that is created by default, maps to a DNS server that runs on a reserved IP address for the VPC network range, plus 2. For example, the DNS Server on a 10.0.0.0/16 network is located at 10.0.0.2. For VPCs with multiple IPv4 CIDR blocks, the DNS server IP address is located in the primary CIDR block. The DNS server does not reside within a specific subnet or Availability Zone in a VPC.
 
-!["Routing policy"](routing.jpg)
+The Resolver additionally contains endpoints that you configure to answer DNS queries to and from your on-premises environment. Before you start to forward queries, you create Resolver **inbound and/or outbound endpoints in the connected VPC**. These endpoints provide a path for inbound or outbound queries.
+
+**Outbound endpoint on Route 53 Resolver**: To resolve DNS queries for any resources in the on-premises network from the AWS VPC, you can create an outbound endpoint on Route 53 Resolver and then Route 53 Resolver can conditionally forward queries to resolvers on the on-premises network via this endpoint. To **conditionally forward queries**, you need to create **Resolver rules** that specify the domain names for the DNS queries that you want to forward (such as example.com) and the **IP addresses of the DNS resolvers on the on-premises network** that you want to forward the queries to.
+
+!["DNS Resolvers"](dns-resolvers.jpg)
 
 ## CloudFront
 
@@ -384,6 +411,7 @@ Network Reachability rules package in Amazon Inspector: The findings also have r
 - AWS AppSync GraphQL API
 - Amazon Cognito user pool
 
+!["WAF"](waf.jpg)
 !["WAF Geomatch"](waf-geomatch.jpg)
 
 The logging destinations that you can choose from for your AWS WAF logs are, same destinations as VPC Flow Logs:
@@ -418,7 +446,27 @@ For datasets > 10 PB
 !["EBS pricing"](ebs-pricing.jpg)
 !["S3 pricing"](s3-pricing.jpg)
 
+## Application Discovery Service
+
+AWS Application Discovery Service helps enterprise customers plan migration projects by gathering information about their on-premises data centers. ADS will discover on-premises or other hosted infrastructure. This includes details such as server hostnames, IP and MAC addresses, resource allocation, and utilization details of key resources.
+
+Planning data center migrations can involve thousands of workloads that are often deeply interdependent. Server utilization data and dependency mapping are important early first steps in the migration process. AWS Application Discovery Service collects and presents configuration, usage, and behavior data from your servers to help you better understand your workloads.
+
+ADS will identify server dependencies by recording inbound and outbound network activity for each server. ADS will provide details on server performance. It captures performance information about applications and processes by measuring metrics such as host CPU, memory, and disk utilization. It also will allow you to search in Amazon Athena with predefined queries.
+
+The collected data is retained in encrypted format in an AWS Application Discovery Service data store. In addition, this data is also available in AWS Migration Hub, where you can migrate the discovered servers and track their progress as they get migrated to AWS.
+
+!["Application Migration Service"](ams.jpg)
+
+## Application Migration Service (MGM)
+
+AWS Application Migration Service (AWS MGN) is the primary migration service recommended to **lift and shift** your applications to AWS. Customers considering **CloudEndure Migration** are encouraged to use AWS Application Migration Service for future migrations.
+
 ## Migration Strategies
 
 **Replatforming** is a migration strategy where you don't change the core architecture but leverage some cloud optimizations.
 !["Migration Strategies"](migration.png)
+
+## QuickSight enterprise edition
+
+Connect to RDS in a private subnet: Sign in to QuickSight as a **QuickSight admin** and create a new **QuickSight VPC connection**. When you register a VPC connection with QuickSight, you can securely connect to data that's available only in your VPC, for example: 1. Data you can reach by IP address 2. Data that isn't available on the public internet 3. Private databases 4. On-premises data
