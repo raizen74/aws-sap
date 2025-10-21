@@ -17,11 +17,13 @@
   - [KDS](#kds)
   - [Redshift](#redshift)
   - [Kinesis Data Firehose](#kinesis-data-firehose)
+  - [Kinesis Data Streams](#kinesis-data-streams)
   - [Organizations](#organizations)
   - [Trusted Advisor](#trusted-advisor)
   - [EC2](#ec2)
   - [EBS](#ebs)
   - [ELB](#elb)
+  - [ASG](#asg)
   - [EFS](#efs)
   - [SQS](#sqs)
   - [KMS](#kms)
@@ -104,6 +106,8 @@ Connect on-premises instances to s3 privately: To access S3 using a private IP a
 
 ## S3
 
+You can create 100 buckets per account
+
 **Byte Range Fetch**:
 You can use concurrent connections to Amazon S3 to fetch different byte ranges from within the same object. This helps you achieve higher aggregate throughput versus a single whole-object request.
 
@@ -128,6 +132,9 @@ S3 notifications:
 Access Analyzer:
 !["S3 Access Analyzer"](s3-access-analyzer.jpg)
 
+RTC:
+!["RTC"](rtc.jpg)
+
 ## API Gateway
 
 !["API Gateway"](api.jpg)
@@ -151,11 +158,16 @@ Error codes:
 
 ## IAM
 
+Grant Access to a 3rd party with cross-account Roles and `ExternalID`: Create an IAM role in your AWS account with a trust policy that trusts the Partner (Example Corp). Take a **unique external ID value from Example Corp** (trust relationship) and include this external ID condition in the role’s trust policy. At a high level, the **external ID** is a piece of data that can be passed to the `AssumeRole` API of the **Security Token Service (STS)**. You can then use the external ID in the **condition** element in a role’s **trust policy**, allowing the role to be assumed only when a certain value is present in the external ID.
+
 **IAM Access Analyzer** analyzes CloudTrail logs to determine whether external access is granted. Both IAM Access Analyzer and Macie findings can be reported in Security Hub. Security Hub has integration with Organizations, so you can use one single Security Hub dashboard to monitor for both security issues in one place.
 
 **Permission Boundaries**: You can attach permissions boundaries only to a **user** or **role**, **not a group**.
 
-The `NotAction` element enables you to list services whose operations (or individual operations) are **EXEMPTED** from this restriction
+The `NotAction` element enables you to list services whose operations (or individual operations) are **EXEMPTED** from this restriction. `Action` takes precedence over `NotAction` this is the difference in comparison with `Allow/Deny`
+
+Session-tags:
+!["SAML session tags"](session-tags.jpg)
 
 ## SSM Patch Manager
 
@@ -237,6 +249,18 @@ Audit logging to Amazon S3 is an optional, manual process. When you enable loggi
 
 When a Kinesis data stream is configured as the source of a Firehose delivery stream, Firehose’s PutRecord and PutRecordBatch operations are disabled and Kinesis Agent cannot write to Firehose delivery stream directly. Data needs to be added to the Kinesis data stream through the Kinesis Data Streams PutRecord and PutRecords operations instead.
 
+!["Firehose"](firehose.png)
+
+## Kinesis Data Streams
+
+Kinesis Client Library:
+
+- You can **only use DynamoDB for checkpointing KCL**
+- Each KCL application must use **its own DynamoDB table**
+
+!["Data Streams"](data-streams.jpg)
+!["Data Streams"](data-streams-2.jpg)
+
 ## Organizations
 
 SCPs:
@@ -273,6 +297,8 @@ Provisioned IOPS: You can provision from 100 IOPS up to 64,000 IOPS per volume o
 
 ## ELB
 
+If you need a **static IP for ALB** -> Front it with NLB, ALB does not support Elastic IP.
+
 **Access Logs** are stored in **S3** buckets and it is **not possible** to directly write the logs to **Kinesis Data Firehose**.
 
 **NLB does not support Least Outstanding Requests routing algorithm**. AWS suggests using the Least Outstanding Requests with an ALB when the requests for your application vary in complexity or your targets vary in processing capability.
@@ -284,6 +310,10 @@ For UDP traffic, the NLB selects a target using a **flow hash algorithm** based 
 **Load Balance traffic from a centralized VPC to 2 private Subnets**: you need to configure each NLB as an `AWS PrivateLink endpoint service` with associated VPC endpoints in the centralized VPC and then have the Application Load Balancer (ALB) in the centralized VPC point their target groups to the private IP addresses of each VPC endpoint. Finally, you will configure host-based routing on the ALB to route each application's traffic to the corresponding target group.
 
 !["AWS privatelink"](privatelink.jpg)
+
+## ASG
+
+!["ASG Termination Policy"](asg-termination.jpg)
 
 ## EFS
 
@@ -379,6 +409,10 @@ Proxy methods **PUT/POST/PATCH/OPTIONS/DELETE** go directly to the origin from t
 
 Origin Access Control (OAC) works only for s3, it does not support custom origins.
 
+SSL Certificates: If the origin server returns an expired certificate, an invalid certificate, or a self-signed certificate, or if the origin server returns the certificate chain in the wrong order, CloudFront drops the TCP connection, returns **HTTP status code 502 (Bad Gateway)**, and sets the **X-Cache header to Error from CloudFront**.
+
+!["CloudFront SSL"](ssl.jpg)
+
 ## Global Accelerator
 
 With AWS Global Accelerator, you can shift traffic gradually or all at once between the blue and the green environment and vice-versa without being subject to DNS caching on client devices and internet resolvers, traffic dials and endpoint weights changes are effective within seconds.
@@ -456,11 +490,15 @@ ADS will identify server dependencies by recording inbound and outbound network 
 
 The collected data is retained in encrypted format in an AWS Application Discovery Service data store. In addition, this data is also available in AWS Migration Hub, where you can migrate the discovered servers and track their progress as they get migrated to AWS.
 
-!["Application Migration Service"](ams.jpg)
+!["Application Discovery Service"](ams.jpg)
 
 ## Application Migration Service (MGM)
 
 AWS Application Migration Service (AWS MGN) is the primary migration service recommended to **lift and shift** your applications to AWS. Customers considering **CloudEndure Migration** are encouraged to use AWS Application Migration Service for future migrations.
+
+You can use AWS Application Migration Service to perform non-disruptive tests before cutover. After testing, you can use AWS Application Migration Service to quickly **lift and shift your applications to the cloud** during a short cutover window, typically measured in **minutes**.
+
+!["Application Migration Service"](mgn.jpg)
 
 ## Migration Strategies
 
