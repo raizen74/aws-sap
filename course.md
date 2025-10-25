@@ -304,3 +304,254 @@ Central security tool to manage security accross many accounts and **automate se
 **GuardDuty**, **Macie** and **Security Hub** generate findings, you can investigate the root source of the issues with Detective. Automatically collects events from VPC Flow Logs, CloudTrail and GuardDuty to create a **unified view** and uses **ML and graphs**
 
 ## Compute and Load Balancing
+
+### EC2
+
+Placement group:
+
+- Cluster: Same rack, same AZ
+- Spread: **Max 7 instances** per AZ
+- Partition: 100s of instances per placement group, up to **7 partitions per AZ**, EC2 in the same partition **share the same rack**. EC2 instances can access info of the partition they are via metadata service.
+
+You **can change the placement group of an EC2**:
+
+- Stop
+- **Use CLI** - modify-instance-placement
+- Start
+
+**Dedicated hosts**: You can define **host affinity** (instance reboots are kept on the same host)
+
+EC2 Graviton is only available for Linux
+
+EC2 status check metric:
+
+- Instance Status -> Check underlying EC2 VM
+- System Status -> Check underlying hardware
+
+If any of these checks fail -> Instance recovery (action triggered by CW Alarm `StatusCheckFailed_System`) keeps:
+
+- Metadata
+- Placement group
+- Private, public, elastic ip
+
+Disk metrics (write/read bytes) only for **instance store**
+
+`AWS ParallelCluster`:
+
+- Open source cluster management tool to deploy HPC on AWS
+- Configured with text files
+- Automate creation of VPC, Subnet, cluster type and instance types.
+
+### ASG
+
+Update an AMI -> You need to update the launch template/configuration, then you can **terminate instances manually** or use **EC2 Instance Refresh for Auto Scaling** `StartInstanceRefresh` API, you need to specify the **min % of healthy instances** (it does a rolling refresh), you can specify warm-up time for the new instances
+
+**All ASG processes can be suspended**: Launch, Terminate, HealthCheck, ReplaceUnhealthy, AZRebalance, AlarmNotification, ScheduledActions, AddToLoadBalancer, InstanceRefresh.
+
+### Spot fleets
+
+Automatically request spot instances with the lowest price
+
+- On demand instances + spot instances
+- you define `launch pools`: instance type e.g. m5.large, OS, AZ
+- Spot fleets stop launching instances when **meeting capacity** or **max price**
+
+Strategies to allocate Spot instances:
+
+- `lowestPrice`
+- `diversified`: instances launched across all pools
+- `capacity optimized`: pool with optimal capacity for the number of instances
+- `price capacity optimized (recommended)`: pools with the highest capacity available, then select the pool with the lowest price
+
+### Containers
+
+ALB Dynamic Port Mapping: multiple instances of the same task are running in the same EC2 machine, each task has a random port assigned and ALB finds the right one.
+
+ECS tasks networking:
+
+- none: no network connectivity
+- bridge: Use Docker virtual network
+- host: Bypass docker network, use the host ENI
+- awsvpc: Every task gets its own ENI and private IP
+
+ECS Auto Scaling: CPU and RAM is tracked in CW at the **Service level, not Task level**. It scales tasks not EC2 machines
+
+Both Spot and On-demand instances are available on EC2 launch type and also `FARGATE_SPOT` (less reliable) for tasks running on Fargate
+
+**EC2 Instance Role**: Grants permissions to the ECS container agent on the EC2 instance to perform actions like **registering with the cluster** and **pulling container images from ECR**.
+
+**ECS Task Role**: Provides **permissions for your application code** (running inside the container) to access other AWS services, such as Amazon S3 or DynamoDB
+
+### ECR
+
+- Supports **Cross-Region and Cross-Account replication** 
+- **Manual Scan** or **Scan on push**, results available on ECR Console
+  - Basic Scanning (Common CVE), EventBridge integration for vulnerabilities
+  - Enhanced Scanning (AWS Inspector), OS and application code vulnerabilities, EventBridge integration for findings
+
+### EKS
+
+- **Managed Node Groups**: Nodes are part of the ASG managed by EKS, supports On-Demand and Spot EC2
+- **Self Managed Nodes**: You create the node and register it to the cluster, supports On-Demand and Spot EC2
+- **Fargate**
+
+EKS Data Volumes:
+
+- Need to specify the `StorageClass` manifest on the EKS CLUSTER
+- Support for EBS and **EFS (this is the only storage class that works for Fargate)**, **FSx for Lustre** and **FSx for NetApp ONTAP**
+
+### Amazon ECS Anywhere
+
+- Allows customers to deploy ECS tasks anywhere, on-premises
+- **ECS Container Agent** and **SSM Agent** need to be deployed on the machines
+- `EXTERNAL` Launch Type
+- Must have a stable connection between on-premises and the target AWS Region
+
+### Amazon EKS Anywhere
+
+- Operate kubernetes clusters running outside of AWS
+- The cluster should use **Amazon EKS distro**
+- Install with the **EKS anywhere installer**
+- Optionally use the **EKS Connector** to connect the cluster to AWS, 2 flavors:
+  - `Fully Connected and partially Disconnected`: connect the external clusters to AWS and operate them from AWS Console
+  - `Fully Disconnected`: Not connected to AWS, manage the EKS cluster on-premises
+
+### Lambda
+
+- Lambda cannot be deployed in Public Subnet
+- If the VPC does not have a NAT GW, **CW Logs for lambda still work**
+
+Lambda Async
+
+- Integrations S3, SNS, EventBridge
+- DLQ can be SQS and **SNS** for failed processing
+
+### ELB
+
+- Classic LB:
+  - Cross-Zone Load balancing: disabled by default, no charges
+- GW LB operates at layer 3 - IP protocol, uses `GENEVE protocol` at `port 6081`
+  - Cross-Zone Load balancing: disabled by default, incurs charges
+  - Target Groups: EC2 instance, **IP addresses** must be **private IPs**
+- ALB
+  - Cross-Zone Load balancing: Always enabled, cannot be disabled
+  - target Group: EC2 instance, ECS task, lambda, **IP addresses** must be **private IPs**
+- NLB (layer 4)
+  - Cross-Zone Load balancing: disabled by default, incurs charges
+  - Has 1 IP per AZ and supports assigning **Elastic IP**
+  - Target groups: EC2 instances, private IPs and **ALB**.
+  - **Regional NLB DNS**, returns the IPs of all NLB nodes (1 per AZ) e.g. `my-nlb-12345abc.nlb.us-east-1.amazon.aws.com`. **Zonal DNS Name**: Each node in the NLB has a DNS which resolves to the IP of that node e.g. **us-east-1a**.my-nlb-12345abc.nlb.us-east-1.amazon.aws.com (fronted by the zone).
+
+Routing Algorithms:
+
+- Least Outstanding Requests: The next instance to receive the request is the one that has the lowest number of pending/outstanding requests: CLB and ALB
+- Round Robin: CLB and ALB
+- Flow Hash: target based on hash of proto, target source/destin ip address and port, tcp sequence number. Each TCP/UDP is routed to the same target for the live of the connection: NLB.
+
+### API GW
+
+**max 10MB payload size** can be a problem for S3 proxy
+
+10000 req/s (soft limit)
+
+Supports **Resource Based Policy**
+
+**Private endpoint type**: Only accessible from the VPC using an **VPC interface Endpoint**, a single VPCe can be used to access multiple APIs. Uses **API GW Resource Based Policy** to control access (`aws:SourceVPC` or `aws:SourceVPCe`) + VPCe policy
+
+**Caches** are defined per **Stage** and **Method**, bypass the cache with **Cache-control: max-age=0**. Cache can be encrypted and **capacity 0.5 - 237 GB**
+
+- **429 too many requests**: **Account level throttling** accross all APIs in a Region
+- **502 Bad Gateway**: Incompatible output returned by **lambda** or out-of-order invocations because of high traffic.
+- **503 Service Unavailable**
+- **504 Integration Failure**: +29 seconds
+
+Access logs can be send to CW logs or Kinesis Data Firehose
+
+Usage Plans work at stage and method level
+
+### AppSync
+
+Retrieve data in **real-time with WebSocket** or **MQTT on WebSocket**
+
+Can retrieve data from Aurora, OpenSearch, DynamoDB, Lambda, HTTP endpoints...
+
+Cognito integration -> In the **GraphQL Schema** you specify security for Cognito Groups
+
+### Route 53
+
+CNAME maps a hostname to a hostname, the target of which has to be an A or AAAA record
+
+ALIAS record targets, **not allowed for EC2 dns name (use CNAME for the DNS or A for its private IP)**:
+
+- ELB
+- Cloudfront
+- API GW
+- Beanstalk
+- S3 website
+- VPC interface endpoint
+- Global Accelerator
+- Other records in the hosted zone
+
+TTL is mandatory for every record type EXCEPT ALIAS records
+
+Routing policies:
+
+- Simple, CANNOT be associated with health checks
+- Multiple: The client randomly selects one value from the response, **no health checks**
+- Weighted, can associate health checks
+- Latency, can associate health checks (failover)
+- Failover (active-passive), mandatory health check on the primary
+- Geolocation, must create a **Default location** for non matching requests, can associate health checks
+- Geoproximity, can define **bias**, you must use **Traffic Flow** feature of Route 53
+- Multi-value: Up to 8 healthy records are returned, not a substitute for ELB
+- IP-based routing: **You provide a list of CIDRs** e.g. route a specific ISP to a specific endpoint
+
+Traffic Flow: Visual editor to create very complex configurations, can be saved as **Traffic Flow Policy** and have versioning
+
+`DNSSEC` only works with **public hosted zones**
+
+Route 53 DNS provider with 3rd party Registar: You update the **NS servers** on your domain registrar to point the ones in Route 53
+
+**Health Checks** are only for **public resources**, pass if the endpoint responds 2xx or 3xx Status code:
+
+- Health Checks that monitor an endpoint
+- Health Checks that monitor other Health Checks (Calculated Health Checks), up to 256 child health checks.
+- Health Checks that monitor a CW Alarm
+- **Can be configured to fail/pass based on the value in the first 5120 bytes of the response**
+
+To monitor a **private** resource inside a VPC (health checks can only monitor public resources): Create a CW metric and associate a CW Alarm, then monitor the alarm (not private VPC)
+
+Health Checks can trigger CW Alarms
+
+**Hybrid DNS**:
+
+- Inbound Endpoint: Allow to resolve domain names for **AWS Resources** and **Private Hosted Zones**.
+- Setup Inbound Endpoint: From the DNS resolver on-premises you point to the IP addresses of the **Resolver Inbound endpoint**. The resolver inbound endpoint is linked to the Route 53 resolver which queries the Private Hosted Zone
+- Outbound Endpoint: Conditionally forward DNS queries to on-premises resolvers, use **Forwarding Rules**
+- Setup Outbound Endpoint: A private EC2 queries Route 53 resolver which in turn queries the Outbound endpoint **forwarding rules** which point to the on-premises DNS resolver.
+
+These endpoints can be associated with **1 or more VPC in the same Region**. Create them in 2 AZ for HA. Each endpoint supports 10000 queries/s per IP
+
+**Resolver Rules**, can be shared Cross-Account with RAM:
+
+- Forwarding Rules: Forward DNS queries for a specified domain and all its subdomains to target IPs
+- **System Rules** overwrite Forwarding Rules (e.g. not forward a specific subdomain).
+- Auto-defined system rules: Define how AWS internal domain names and Private Hosted Zones are resolved
+
+### Global Accelerator
+
+2 anycast IPs, Health Checks on endpoints and failover in less than 1 minute
+
+Targets:
+
+- Elastic IP
+- EC2
+- ALB, NLB, public or private
+
+Client IP preservation **except for Elastic IP endpoints**
+
+### Outposts
+
+- AWS sets up and manage the rack.
+- EC2, ECS, EKS, S3 are supported
+- S3 Outposts storage Class, **you can create an access point and access it from your VPC** or you can use DataSync to copy it to the cloud.
