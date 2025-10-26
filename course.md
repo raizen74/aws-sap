@@ -555,3 +555,188 @@ Client IP preservation **except for Elastic IP endpoints**
 - AWS sets up and manage the rack.
 - EC2, ECS, EKS, S3 are supported
 - S3 Outposts storage Class, **you can create an access point and access it from your VPC** or you can use DataSync to copy it to the cloud.
+
+## Storage
+
+### EBS
+
+- AZ bound -> copy snapshots to another AZ
+- `st1` frequently accessed
+- `sc1` less frequently accessed
+- `gp2/gp3` and `io1/io2` can be used as **boot volumes**
+- EBS backups consume I/O
+- Fast Snapshot Restore or `fio/dd` command
+- There is an **account level setting** to enable encryption in new EBS volumes, Regional setting
+- `io1/io2` support **multi-attach**, must use a file system thats cluster aware, not XFS or EX4
+
+Data LifeCycle Manager
+
+- Use resource tags to identify resources (EC2, EBS)
+- Can not be used to manage snapshots/AMIs created outside DLM
+- Can not be used to manage **instance-store backed AMIs**
+
+**Instance store**: **Data survives reboot** but data lost if you stop the EC2
+
+### EFS
+
+- You **pay per GB used**, scales automatically to PBs, no capacity provisioning
+- Can only attached to **1 VPC**, 1 ENI (mount target) per AZ
+- 1000s of concurrent NFS clients, 10GB/s throughput
+
+**EFS Performance Mode** (set at creation time)
+
+- **General Purpose (default)**: Latency optimized (Web serving)
+- **Max I/O**: Higher latency, Higher throughput, higher parallel (big data, media processing)
+
+**Throughput Mode**:
+
+- Bursting: Grows in throughput when storage grows e.g. 1TB -> 50 MB/s + burst up to 100 MB/s
+- Provisioned: Set your throughput regardless storage size e.g. 1TB -> 1GB/s
+- Elastic: Automatically scales throughput based on workload, ideal for unpredictable workloads
+
+**Lifecycle management feature**, moves files between storage tiers after **N days**:
+
+- Standard -> Frequently accessed files
+- EFS IA
+- Archive -> 50% cheaper, access few times a year
+
+**Availability and durability**:
+
+- **Standard**: Multi AZ
+- One Zone/One Zone IA: (90% cheaper)
+
+External Access -> via NFS ENIs:
+
+- VPC Peering
+- DX or VPN
+- To **mount NFS from on-premises servers** you must **use NFS mount target by ENI IPv4**, not DNS. EC2 instances can use DNS.
+  
+EFS **File System Policies**: Same as Resource Based Policies, by default grant access to all clients
+
+Cross-Region Replication: **RPO and RTO of minutes**. Do not affect provisioned throughput
+
+### S3
+
+**S3 Replication time control (RTC)**: Objects are replicated in seconds and 99.99% of them within **15 minutes** or you receive an **alarm**
+
+Limits per prefix per bucket:
+
+- `3500 PUT/COPY/POST/DELETE`
+- `5000 GET/HEAD`
+- No limit of prefixes per bucket
+
+**Multi-part upload**, recommended for > 100MB, mandatory for > 5GB
+
+ You can use **AWS CLI** to **list** incomplete multi-part uploads. Can set up a Lifecycle policy to **delete incomplete multipart uploads** after X days, `AbortIncompleteMultipartUpload`
+
+**S3 Byte-Range Fetch** -> Speed downloads, request different byte ranges in parallel
+
+**S3 Analytics** also named **Storage Class Analytics**:
+
+- Recommendations for **Standard** and **Standard IA**
+- Does **NOT WORK** for **One-Zone IA** or **Glacier**
+- CSV report is updated daily
+- 24/48 hours to start seeing data analysis
+- Visualization in `QuickSight`
+
+**Storage Lens**:
+
+- Understand, analyze and optimize storage accross **AWS Organization**
+- Discover anomalies, cost inefficiencies, apply data protection
+- Can be configured to export metrics daily to an S3 bucket (CSV, Parquet)
+- Default Dashboard or create your own Dashboard
+- Default Dashboard:
+  - Both Free and Advanced Metrics
+  - shows **multi-Region** and **multi-Account** data
+  - Can't be deleted but can be disabled
+- Metrics displayed:
+  - `StorageBytes`, `ObjectCount` -> Identify the fastest growing or not-used Buckets or prefixes
+  - Cost optimization metrics: `NonCurrentVersionStorageBytes`, `IncompleteMultipartUploadStorageBytes`
+  - Data Protection Metrics: `VersionEnabledBucketCount`, `MFADeleteEnabledBucketCount`
+  - Access Management Metrics: `ObjectOwnershipBucketOwnerEnforcedBucketCount`
+  - Event metrics: `EventNotificationsEnabledBucketCount`
+  - Performance Metrics: About Transfer Acceleration
+  - Activity Metrics: About how storage is requested: `GetRequests`, `PutRequests`
+  - Detailed Status Code Metrics: `200OkStatusCount`, `403ForbiddenErrorCount`
+- Free Metrics ~28, data available for query for **14 days**
+- Advanced Metrics and Recommendations, additional paid metrics and features
+  - Activity, Advanced Cost Optimization, Advanced Data Protection, Status Code
+  - CW publishing
+  - Prefix aggregation
+  - Data available for **15 months**
+
+### FSx
+
+FSx for Windows:
+
+- **Can be mounted on Linux EC2**
+- Active Directory integration
+- Supports **SMB** and **Windows NTFS**
+- Supports Microsoft Distributed File System Namespaces
+- Storage Options:
+  - SSD - small random file ops
+  - HDD - large sequential file ops
+- Can be accessed over DX or VPN
+- Multi-AZ option
+- **FSx Windows Single AZ cannot be automatically moved to Multi AZ**, leverage `DataSync` or backup and restore as Multi-AZ
+- Data is backed daily in S3
+
+Lustre -> Seamless integration with S3, can read S3 as a file system. Can write the result of computation back to S3. Accessible from Windows EC2 instances
+
+FSx Lustre Deployment Options:
+
+- Scratch File System
+  - Temporary Storage
+  - Data not replicated
+  - High burst, 200 MBps per TiB
+  - Usage: short time processing
+- Persistent File System:
+  - Data is replicated within same AZ
+  - Replace failed files within minutes
+  - Usage: long term processing, sensitive data
+
+NetApp ontap:
+
+- NFS, SMB, iSCSI
+- Storage grows automatically
+- Snapshots, compression low-cost
+- Point in time instantaneos cloning
+
+OpenZFS
+
+- NFS
+- Snapshots, compression low-cost
+- Point in time instantaneos cloning
+
+Good To KNOW:
+
+- You can only increase the amount of storage.
+- If you restore a backup, you can only restore to the **same size**
+- When restoring a backup, **you cannot decrease the size of the FSx**. To decrease the size you must create a new FSx smaller and migrate to it with `DataSync`.
+- FSx for Lustre Data Lazy Loading: Data on S3 can be lazy loaded in the app, you do not need to download everything before start the processing, data is loaded on demand (less requests and cheaper)
+
+### DataSync
+
+Synchronize data from NFS and SMB protos of on-premise servers with DataSync agent (up to 10 GB/s). To move data via DX you have 2 options:
+
+- `Public VIF`: Uses public URL of the DataSync Service
+- `Private VIF` to a **VPC interface endpoint** in the VPC to connect to the DataSync Service
+
+### Data Exchange
+
+- Suscribe to 3rd party data in the cloud e.g. **Reuters**, **Foursquare**.
+- Use Data Exchange API to load data into S3
+- Data Exchange for **Redshift**
+
+### Transfer Family
+
+- Transfer data into and out of **S3** and **EFS** using FTP proto
+- FTP, SFTP or FTPS
+- Multi-AZ
+- Pay per provision endpoint and data transfer
+- Microsoft AD, Okta, Cognito integration
+- Endpoint types:
+  - Public: Public IP managed by AWS, **IP can change**. **Can not set allow lists** for access control
+  - VPC Endpoint with internal access, static private IP. Can allow access with SG/NACL
+  - VPC Endpoint with internet-facing access: **Static private IP**, **static public IP with Elastic IP**. Can allow access with SG
+
