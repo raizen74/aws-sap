@@ -804,6 +804,141 @@ Functions:
 
 ### ElastiCache
 
+Eventhough you already use Redis or Memcached, ElastiCache requires **application code changes**
+
 `Redis` has **backup and restore features**
 
 `Memcached` -> Non persistent cache, data is **sharded but not replicated**. Self-managed and serverless versions. Not Multi-AZ like Redis
+
+## Databases
+
+### DynamoDB
+
+- Massive scale, millions of RPS
+- Max Object size 400 kB
+- Capacity
+  - Provisioned RCU/WCU, optionally with auto scaling
+  - On-Demand, pay for every single write and read
+- Reads -> Strongly or Eventually consistent
+- Supports transactions across multiple tables (ACID)
+- Table Classes: **Standard** and **IA**
+- Good `Sort Key`: timestamp
+- `LSI`: Keep the **same PK** and select a **different SK**, defined at creation time
+- You can only query by PK + SK on the main table + Indexes
+- TTL at row level
+- **DynamoDB Streams**
+  - **24 hours retention**
+- Send data directly to `Kinesis Data Streams` (up to 365 days) from `DynamoDB`, direct integration
+
+DAX
+
+- **Individual object, Query, Scan Cache**. For caching computations over the data use `ElastiCache`
+- Does not require application code changes
+- Micro second latency for cached reads & queries
+- Writes go through DAX to DynamoDB
+- **Solves Hot Key problem**
+- 5 minutes TTL for cache by default
+- Up to 10 nodes, multi-AZ (3 nodes recommended for HA)
+
+### OpenSearch
+
+- `Managed` cluster or `serverless`
+- Kibana is named OpenSearch Dashboards
+- **CW Logs Subscription Filters can send data to Firehose** to insert data into OpenSearch **near real time**
+
+### RDS
+
+- Launched in a VPC, control access via SG
+- Storage by **EBS**, can increase volume size with auto-scaling
+- Backups: Automatic with PIR. They expire.
+- Snapshots: Manual
+- RDS Events: get notified via SNS for events
+- MultiAZ failover: The same DNS automatically resolves to the standby
+- We can use Route 53 Weighted Record Set to distribute Reads across Read Replicas, + Health checks
+- **Transparent Data Encryption for Oracle and SQL Server**. Encrypts data before its written to storage.
+- IAM auth for Postgres, MySQL and MariaDB. You do NOT need password, just auth token (lifetime of 15 min). **SSL is mandatory**.
+
+RDS for Oracle:
+
+- Use **RDS backups** to restore to **RDS for Oracle**
+- Use **Oracle RMAN (Recovery Manager) backups** to **restore for non-RDS**. You upload the backup into S3 and then restore in an **EXTERNAL oracle DB**
+- RDS for Oracle does NOT support RAC (Real Application Clusters)
+- RAC is working on Oracle on EC2 because you have full control
+- DMS works on Oracle
+
+RDS for MySQL: You can use the native `mysqldump` tool to **migrate RDS MySQL to non RDS**
+
+RDS Proxy for lambda
+
+- Supports **IAM auth**, **DB auth** and **auto-scaling**
+- Can be public or private (lambda in VPC)
+
+### Aurora
+
+- Automatically grows up to 128 TB, 6 copies of data, multi-AZ
+- Up to 15 RR, single read endpoint
+- Cross Region Read Replicas of the entire DataBase (not tables)
+- You can load and export data directly to S3
+- **Single Write endpoint and Read endpoint**
+
+HA and Read Scaling
+
+- 4 of the 6 copies of data are needed for writes and 3/6 copies are needed for reads
+- Self healing with peer2peer replication
+- Storage is stripped across 100s of volumes
+- Master is the only that can write to the storage
+- Failover < 30s
+
+Aurora Endpoints
+
+- Endpoint: Host+Port
+- Writer endpoint: Connects to the primary DB
+- Reader endpoint: Load Balance replicas
+- Custom endpoint: Represent a group of DB instances in the cluster, useful to define a parameter group specific to them
+- Instance endpoint: Connect to a specific instance, diagnosis the specific instance
+
+Aurora Logs
+
+- Error, **slow query**, general and audit logs available as files.
+- Can be **downloaded or published to CW Logs**.
+
+Troubleshooting
+
+- **Performance Insights**: find issues by waits,SQL statements, hosts and users
+- **Enhanced Monitoring**: Host level, process view, per-second metric e.g. the top 100 processes running
+- **CW Metrics**: CPU, Memory, Swap Usage
+
+### Aurora Serverless
+
+- Automatic instantiation, auto-scaling based on usage
+- No need for capacity planning
+- Good for unpredictable workloads
+- Pay per second
+- **You just connect to 1 endpoint**
+
+Data API
+
+- Access Aurora Serverless with a simple API, **without establishing a JDBC connection**
+- **HTTPS** endpoint to run SQL Statements
+- No persistent connection management
+- Application needs IAM policy with access to **Data API and Secrets Manager (where credentials are checked)**
+
+RDS Proxy for Aurora
+
+- Can front the Primary Instance (write and reads)
+- Can create a read only endpoint that **connects only to the Read Replicas**
+
+Aurora Global
+
+- You define a primary region (write/read)
+- **Up to 10** secondary (read-only) regions, **replication lag < 1 second**
+- Up to 16 RR per secondary region
+- Promoting another region has **RTO < 1 minute**
+- Ability to **manage the RPO for Aurora PostgreSQL**
+- **Write Forwarding**: You can submit writes to secondary regions and are forwarded to the primary.
+
+Convert RD to Aurora:
+
+- Take a snapshot and restore, quick
+- **Create an Aurora RR from an RDS instance**, you can promote it to primary and migrate the app to Aurora.
+
