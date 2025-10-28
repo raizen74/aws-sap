@@ -452,7 +452,7 @@ Routing Algorithms:
 
 **max 10MB payload size** can be a problem for S3 proxy
 
-10000 req/s (soft limit)
+**10000 req/s** (soft limit)
 
 Supports **Resource Based Policy**
 
@@ -740,3 +740,70 @@ Synchronize data from NFS and SMB protos of on-premise servers with DataSync age
   - VPC Endpoint with internal access, static private IP. Can allow access with SG/NACL
   - VPC Endpoint with internet-facing access: **Static private IP**, **static public IP with Elastic IP**. Can allow access with SG
 
+## Caching
+
+### CloudFront
+
+- 100000 req/s easy
+- **Speeds up UPLOADS** e.g. S3 (Cloudfront ingress)
+- `MediaStore Container & MediaPackage Endpoint` -> Front Video-on-demand (VOD) or live streaming with other AWS Services
+- `VPC Origin` for apps hosted in **VPC private subnets**
+- **Custom Origin (HTTP)** -> Api GW, S3, any HTTP backend outside AWS.
+- Use a **CloudFront Custom Header (X-Custom-Header)** to restrict access from CloudFront, (must be a secret) and Allow **CloudFront IPs** in the SG
+- Origin Groups (primary, secondary) for failover, can be **Cross-Region**, can be used in S3 bucket + S3 Cross Region Replication
+
+**Cloudfront Geo Restriction**:
+
+- Define **Allow and Block Lists**.
+- The country is infered from a **3rd party Geo-IP database**.
+- Automatically adds a header `CloudFront-Viewer-Country` **available at Lambda@Edge**.
+
+3 **Price Classes**:
+
+- All - All Regions, best performance
+- 200 - most Regions, excludes the most expensive ones
+- 100 - Only the least expensive Regions
+
+CloudFront Sign URLs:
+
+- Returned by an API call into CloudFront as a **trusted signer**
+- Allow access to a **path**
+- Account wide key-pair, only the root user can manage it
+- Can filter by IP, path, date, expiration
+- Can leverage caching features
+
+**Custom Error Pages**:
+
+- Return an object to the viewer when origin returns 4xx or 5xx
+- Specify **Error Caching minimum TTL** to specify how cloudfront caches the custom error page.
+
+Functions:
+
+- **CloudFront functions** are deployed at Edge Location
+  - **Modify Viewer Req/Res**
+  - Written in JS
+  - NO access to the **request body**
+  - Millions of req/s, sub millisecond start time
+  - Use cases: Req normalization, header manipulation, validate JWT
+  - < 1ms execution time
+  - Isolation process based
+- **Lambda@Edge** is deployed at the Regional edge cache
+  - Written in **NodeJS or Python**
+  - Can call external APIs e.g Cognito
+  - Access to the **request body**
+  - Scale to 1000s req/s
+  - Modify **Viewer Req/Res and Origin Req/Res**
+  - Can route to a **different origin**
+  - Must be authored at `us-east-1` and Cloudfront replicates it to all Regional Caches
+  - 5 second viewer trigger, 30 seconds origin trigger
+  - Isolation VM based
+  - Use Case:
+    - Modify origin based on **User-Agent** e.g. load lower resolution images for mobiles
+    - Lambda@Edge queries DynamoDB Global tables for a Global App
+- Both **CloudFront functions** and **Lambda@Edge** **can be used together** BUT CANNOT if **Lambda@Edge** also operates the **Viewer Req/Res**, we cannot use both **CloudFront functions** and **Lambda@Edge** on the **Viewer Req/Res**
+
+### ElastiCache
+
+`Redis` has **backup and restore features**
+
+`Memcached` -> Non persistent cache, data is **sharded but not replicated**. Self-managed and serverless versions. Not Multi-AZ like Redis
