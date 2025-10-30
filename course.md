@@ -1133,3 +1133,83 @@ You create **users (standard edition)** and **groups (only enterprise edition)**
 - You can share the analysis or dashboard with users and groups. You must first **publish the Dashboard**. Then, users or groups have access to the underlying data.
 
 QuickSight data sources: RDS, Aurora, **Redshift, Athena**, S3, OpenSearch, Timestream, **SaaS (Salesforce, Jira)**, teradata, on-premises DB compatible with JDBC
+
+## Monitoring
+
+### CW Metrics
+
+- EC2 Standard: 5 min. Detailed Monitoring: 1 min.
+- Custom metrics: standard resolution 1 min, high resolution 1 sec
+
+### CW Alarm
+
+Can trigger:
+
+- EC2 Action: `Reboot`, `Stop`, `Terminate`, `Recover`
+- Auto Scaling
+- **SNS**
+
+Can be intercepted by `EventBridge`
+
+### CW Dashboards
+
+- Can display `Metrics` and `Alarms`
+- Can show metrics in **multiple Regions**.
+
+### Synthetic Canaries
+
+- Scripts in Node.js or Python, access to headless Google Chrome
+- Can run once or on schedule
+- Check availability and latency of APIs, URLs, endpoints
+- Can trigger CW Alarms
+
+Available **Blueprints**:
+
+- HeartBeat Monitor - Load URL
+- API Canary - R/W apis
+- Broken Link Checker
+- Visual Monitoring: Compares against screenshot
+- Canary Recorder: Records actions in a web
+- GUI Workflow builder: Verifies that a sequence of actions can be taken on the web.
+
+### CW Logs
+
+Destinations:
+
+- S3 with SSE-S3 or SSE-KMS. NOT real time, data can take up to **12 hours** to be available for export. Manual trigger with `CreateExportTask` API
+- Kinesis Data Streams
+- Firehose
+- Lambda
+
+Logs `Insights`: **Query logs and add queries to CW Dashboards**
+
+Subscription Filters Destinations:
+
+- Trigger a **lambda function managed by AWS** to load data in **real-time** to OpenSearch. You can create your **custom lambda**.
+- Integration with Firehose for **near real-time** load on S3
+- Kinesis Data Streams -> Firehose, Flink, Lambda, EC2. Useful to centralized logs in multi-Account/Region setting by sending them to a single Stream in a centralized account
+
+### CW Agent
+
+Install the CW agent on EC2 with SSM, 2 options, **EC2 must have the SSM agent**:
+
+- SSM Run Command, document: AWS-ConfigureAWSPackage, Name: AmazonCloudWatchAgent
+- SSM State Manager, document: AWS-ConfigureAWSPackage, Name: AmazonCloudWatchAgent
+
+Without SSM Agent:
+
+- Install manually the CW agent and retrieve its config from Parameter Store
+
+### EventBridge
+
+You can access Event buses cross-Account/Region with Resource based policies: Useful to aggregate events in a central event bus
+
+You can **archive events and replay them**
+
+There is a **Schema Registry** which allows to generate code for your app based on the data format of the event received from the EventBridge.
+
+3 types of event buses:
+
+- Default
+- 3rd party SaaS: DataDog...
+- Custom event bus
