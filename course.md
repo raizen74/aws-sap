@@ -942,3 +942,194 @@ Convert RD to Aurora:
 - Take a snapshot and restore, quick
 - **Create an Aurora RR from an RDS instance**, you can promote it to primary and migrate the app to Aurora.
 
+## Service Communication
+
+### SNS
+
+SNS topic suscribers: EMAIL, MOBILE, Custom HTTP(S), SQS, LAMBDA, **FIREHOSE**
+
+**DLQ works at the subscription level, not topic level**. Every subscription has its DLQ
+
+`Delivery Policy` is applied in case of server-side errors, `Custom Delivery Policies` are **only available for HTTP(S) suscribers**
+
+## Data Engineering
+
+### Kinesis Data Streams
+
+Data **CAN'T be deleted from Kinesis** until expiration (365 days)
+
+Ordering via **Partition ID**
+
+To process messages in Real-time, Data Streams is much more cheap than DynamoDB streams
+
+**Enhanced Fanout** reduces latency
+
+**Provisioned Mode**:
+
+- Choose the number of shards
+- Provisioned Mode: 1 MB/s or 1000 req/s producer, 2 MB/s out consumer
+- Scale the number of shards manually
+- Pay per shard provisioned per hour, **0.015$/hour**
+
+**On-Demand Mode**:
+
+- No need to provision shards
+- **Default** capacity provided: **4 MB/s or 4000 req/s producer**
+- **Scales automatically** based on observed throughput peak during the last 30 days
+- Pay per stream/hour and data in/out per GB
+
+### Amazon Data Firehose
+
+- Input records up to 1 MB
+- No Data Storage like Data Streams
+- Writes data in batches -> near real time
+- 3rd party integrations: Datadog, splunk, mongoDB, New Relic...
+- Custom destinations: HTTP
+- Source Records can be stored in S3
+- If you have a **lambda transform failure or a delivery failure**, you can store the data in S3
+- For CSV to JSON -> use lambda transform
+- Provides **data conversion** JSON to Parquet/ORC (only for S3 dest) without lambda transform
+- Supports compression when **target is S3**: GZIP, ZIP, Snappy
+- If target is Redshift (COPY from S3), only GZIP
+- **Kinesis Producer Library KPL CAN send data to Firehose**
+- **Kinesis Client Library KCL CANNOT read from Firehose, can only read from kinesis Data Streams**
+
+Buffer Size:
+
+- Based on **Time and Size e.g. 32MB and 2 min**, whatever first flushes the buffer
+- Firehose can **automatically increase the buffer size to improve throughput**
+- **Minimum buffer time of 1 minute**
+
+### Managed Service for Apache Flink
+
+- **Reads ONLY from Kinesis Data Streams and MSK**
+- **CANNOT read from Firehose**
+- Java, Scala or SQL
+
+### MSK
+
+- Data is stored in EBS for as much as you want
+- Option to use MSK Serverless: You do not manage capacity
+- 1 MB per message (default) can configure for higher
+- MSK consumers: Flink, Glue, lambda or Custom consumer Apps (EC2, ECS, EKS)
+
+### Batch
+
+AWS Batch, container jobs can run on:
+
+- Fargate
+- EC2 & Spot Instances in VPC, need access to the ECS service via **NAT GW or VPC Endpoint**
+
+Uses EBS or Instance Store for storing data
+
+**Managed compute environment**:
+
+- On-Demand and Spot launched in your VPC
+- You specify the **Spot instance max price**
+- Set **min and max vCPUs** -> EC2 are automatically created to respond to demand
+- You have a **Batch Job Queue** that distributes the jobs
+- SDK to send jobs to the **Batch Job Queue**
+- You can set up autoscaling based on the jobs in the queue
+
+**Unmanaged compute environment**: You control the EC2 config and scaling
+
+Batch - **Multi Node Mode (HPC)**:
+
+- Leverages multiple EC2 at the same time, representing a single job
+- 1 main node and many children nodes
+- **Does not work with Spot Instances**
+- Works better with EC2 **placement group cluster**
+
+### EMR
+
+- EC2s are launched in a **single AZ in the VPC**, HDFS uses EBS volumes
+- If you want your data multi-AZ, you can use EMRFS native integration with S3 (SSE)
+- You can use **Hive to directly read data from DynamoDB**
+
+EMR Instance configuration:
+
+- Uniform instance groups: Select Master, Core and Task nodes instances On-Demand or Spot. **Has autoscaling**
+- Instance Fleet: Select number of OnDemand and spot, **no autoscaling**
+
+### Redshift
+
+- 2 Modes: Provisioned and Serverless
+- Has a SQL interface for running queries
+- Columnar data storage (OLAP)
+- PB scale
+- Data is loaded from S3, Firehose, DynamoDB, DMS...
+- Up to +100s nodes, each up to 16 TB
+- Default: Nodes are single AZ. But for some types of Cluster you can set up multi-AZ (have failover capability in case of failure)
+- Redshift enhanced VPC Routing: COPY/UNLOAD goes through the VPC
+- RedShift is a provisioned service (not Serverless) -> good when you have a sustained usage, for sporadic queries use Athena
+
+Snapshots, stored in S3, you can restore a **new Cluster**:
+
+- **Automated snapshots**: Every **8 hours, every 5GB or on a schedule**. You specify a retention period.
+- Manual snapshots: permanent retention until deletion
+- Can be copied to another Region for DR or configure **automated CRR**
+
+Copy an encrypted snapshot into another Region: You must allow Redshift to perform encryption ops in the destination Region (**snapshot copy grant**), Redshift uses KMS in the destination Region to provision the cluster
+
+Redshift spectrum: Must have a Redshift cluster to start the query, query is submitted to 1000s of nodes, results aggregated by cluster Computes nodes
+
+Redshift Workload Management (WLM):
+
+- Prevent short-running queries from being bloqued by long-running ones
+- You define multiple `Query Queues`
+- 2 Flavors: `Automatic WLM` (resources managed by Redshift) and `Manual WLM`
+
+Redshift Concurrency Scaling: Virtually unlimited concurrent queries and users. Concurrency scaling cluster scales nodes automatically, it is **managed by WLM**
+
+### DocumentDB
+
+**Provisioned Service**, not On-Demand. Very similar to Aurora.
+
+Pay for what you use:
+
+- On-Demand EC2
+- Database I/O
+- Database Storage (GB/month)
+- Backup Storage e.g. S3 (GB/month)
+
+### TimeStream
+
+- Serverless
+- 1000s faster and 1/10 cheaper than RDS
+- Recent data kept in memory and historical data in cost-optimized storage
+- Builtin time series analytics functions
+
+Producers:
+
+- Prometheus
+- Telegraph
+- Kinesis DS
+- Flink
+- IoT
+- Lambda
+
+Consumers:
+
+- QuickSight
+- Grafana
+- SageMaker
+- JDBC compatible
+
+### Athena
+
+Use big files, +128 MB
+
+Federated Queries: Uses `Data Source Connectors` (lambda functions) to execute queries in **relational and non-reliational** DB: RDS, Aurora, On-premises DB, every JDBC compatible DB. Results can be stored in S3
+
+### QuickSight
+
+Enterprise edition: Possibility to setup Column-level security (CLS)
+
+`SPICE` in-memory compute engine only works if **data is imported** to QuickSight: CSV files, TSV, JSON...
+
+You create **users (standard edition)** and **groups (only enterprise edition)**.
+
+- **Dashboard**: Read-Only snapshot of an **analysis**, preserves configuration params
+- You can share the analysis or dashboard with users and groups. You must first **publish the Dashboard**. Then, users or groups have access to the underlying data.
+
+QuickSight data sources: RDS, Aurora, **Redshift, Athena**, S3, OpenSearch, Timestream, **SaaS (Salesforce, Jira)**, teradata, on-premises DB compatible with JDBC
