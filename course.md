@@ -1213,3 +1213,160 @@ There is a **Schema Registry** which allows to generate code for your app based 
 - Default
 - 3rd party SaaS: DataDog...
 - Custom event bus
+
+## Deployment
+
+### Beanstalk
+
+- Great for **replatform** (make it cloud native) your app
+- Resources have the X-ray agent installed
+
+Runtimes supported:
+
+- Go
+- Java
+- Java with tomcat
+- .NET on windows server with IIS
+- Node.js
+- PHP
+- Python
+- Ruby
+- Packer Builder
+- Docker (single, multicontainer and preconfigured)
+
+3 Architectures:
+
+- Single instance, good for dev
+- LB + ASG, good for prod
+- SQS + ASG only, good for non web apps (worker tier)
+
+Worker environment: You can define periodic tasks in a `cron.yaml` file
+
+Blue/Green deployment (not a native feature of Beanstalk): You create an v2 enviroment and use **Route 53 weighted routing policy** or **Beanstalk Swap URLs feature**
+
+### CodeDeploy
+
+Targets: EC2, ASG, ECS and Lambda
+
+EC2: `appspec.yaml` + deployment strategy, **in-place deployment**, you can use hooks after each phase
+
+ASG: **in-place update** or **blue/green where a new ASG is created, must use an ELB which serves both ASGs at the same time until you CodeDeploy terminates the old one**
+
+Lambda: Pre and Post **traffic hooks**, traffic shifting, SAM natively uses CodeDeploy, can rollback to v1 with CW alarm
+
+ECS:
+
+- Blue/Green launches a **new task set** from task definition v2
+- defined in the **ECS Service Console**
+- supports **Canary deployments** `Canary10Percent5minutes`
+
+### CloudFormation
+
+Deletion Policy, default to `Delete` EXCEPT for `AWS::RDS::DBCluster` which is `Snapshot`
+
+Custom Resources (authored Lambda function):
+
+- AWS resource that is not yet supported
+- On-premises resource
+- Emptying an S3 bucket before deletion
+- Fetch an AMI Id
+- ...
+
+Stacksets: **Automatic Deployment** feature to deploy to all trusted accounts
+
+Resource import, you need:
+
+- A template that describes the final stack (original stack resources + target resource to import)
+- A unique identifier for each target resource e.g. an S3 bucket name
+- Each target resource must have a `DeletionPolicy`
+
+### SSM
+
+Patch Manager:
+
+- Define a patch baseline
+- Define patch groups
+- Define manteinance windows
+- Add `AWS-RunPatchBaseline` (works on **Linux and Windows**) Run Command as part of the registered tasks in the manteinance window
+- Define Rate Control (concurrency and error threshold) for the task
+- Monitor patch compliance with **SSM Inventory**
+
+Session Manager: All commands run on the EC2 are logged on CW logs and `StartSession` events are captured by CloudTrail
+
+OpsCenter: Resolve Issues related to AWS resources, OpsItems created by EventBridge or CW Alarms, provides Runbooks to resolve them.
+
+## Cost Control
+
+Cost Allocation Tags: **Only appear in the billing console**. Take up to 12 hours to appear. Show up as new columns in the cost report.
+
+AWS Generated Cost Allocation Tags: `aws` prefix e.g. `aws:createdBy`. Not applied to resources created before activation
+
+User tags: `user` prefix
+
+### Trusted Advisor
+
+- Security
+- Cost Optimization
+- Service Limits (can increase some of them)
+- Operational excellence
+
+**Can enable weekly email notification from the console**
+
+Good to know:
+
+- Trusted Advisor can check if any S3 bucket if public, but it **cannot check if any object is public**
+- Only service that can **monitor service limits**, but to change them use `AWS Support Center` or `Service Quotas`
+
+Support plans:
+
+- Basic, free and **7 core checks**
+- Developer, **7 core checks**
+- Business, **all core checks**
+- Enterprise, **all core checks**
+
+**Full trusted Advisor** (Only available for **business and enterprise plans**): Ability to wire up CW Alarms and Access to AWS Support API.
+
+### Service Quotas
+
+Can notify when a quota threshold is broken and trigger a CW Alarm e.g. Lambda concurrent execs
+
+### Savings plans
+
+1-3 years commitment e.g. 10$ hour
+
+**EC2 Instance Savings plan**: Same discount as Reserved Instances (72%). **Region Locked**, and **instance family locked** e.g. M5, flexible across instance type, OS and tenancy.
+
+**Compute Savings Plan**: Same discount as Convertible Reserved Instances (66%). Flexible across instance family e.g. move from M5 to C5, **Region**, **compute type (EC2, fargate, lambda)**, OS and tenancy.
+
+### S3 Requester pays
+
+- You need to setup a bucket policy mandating IAM auth for the requester.
+- The bucket owner still pays storage cost
+- **If an IAM role is assumed, the owner account of that role pays**
+
+### Budgets
+
+- Up to 5 SNS per Budget Alarm
+- Budget actions, triggered when a budget exceeds a cost or usage threshold. **3 actions**, can be executed automatically or require **manual approval**:
+  - Aply IAM policy to user, group or role
+  - Aply SCP to an OU
+  - Stop EC2 or RDS
+- We can use SNS to trigger a lambda function that applies an SCP to the member account or **move the account to a more restrictive OU**
+
+### Cost Explorer
+
+- Useful to choose optimal **Savings Plan**
+- Feature to forecast usage up to 12 months based on past usage
+
+### Compute optimizer
+
+Uses ML to **analyze resource config and CW metrics**, recommendations can be exported to S3
+
+- EC2 instances
+- EC2 AutoScaling
+- Lambda
+- EBS
+
+### Reserved instances
+
+You can renew RIs by **queuying them**: Purchase RI whenever the previous one expires and will renew automatically.
