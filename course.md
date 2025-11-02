@@ -1370,3 +1370,118 @@ Uses ML to **analyze resource config and CW metrics**, recommendations can be ex
 ### Reserved instances
 
 You can renew RIs by **queuying them**: Purchase RI whenever the previous one expires and will renew automatically.
+
+## Migration
+
+- Relocate: A special case is Relocate using `VMware Cloud on AWS`, where you literally move your entire VMware software-defined data center (vSphere hosts, vCenter, NSX, vSAN) to run on AWS infrastructure. Your VMs run on AWS hardware but are managed with the exact same VMware tools you use on-premises. The primary service for this is AWS `Application Migration Service (MGN)`, which continuously replicates source servers (physical, virtual, or cloud) into ready-to-launch AMIs in AWS.
+- Rehost: Don't use cloud optimizations, app migrated as is. **Application Migration Service**
+- Replatform: database to RDS e.g. on-premise PostgreSQL to RDS Postgres, app to Beanstalk. Leverage fully managed, serverless, cloud optimizations
+- Repurchase: Use SaaS. SalesForce, Workday etc
+
+### Storage GW
+
+S3 File GW: NFS or SMB
+
+- Most Recently used data is cached
+- Supports **Standard**, **Standard IA**, **One-Zone IA** and **Intelligent Tiering**
+- Transition to Glacier with Lifecycle policy
+- Bucket access with IAM Role for File GW
+- `SMB` proto has **integration with Active Directory for user auth**
+
+Volume GW: iSCSI, backed by S3
+
+- Backed with EBS snapshots
+- `Cached GW`: Caches most recent data
+- `Stored Volume`: entire dataset on premise, scheduled backups to S3
+
+Advanced Architectures:
+
+- You can connect an extra File GW appliance deployed in a VPC to the same S3 bucket, both on-premises and EC2 share data in S3
+- Deploy a Read Only replica of File GW appliance in a VPC to give EC2 read-only access with **low latency**
+- If you enable **Object Versioning** you have file versions and restore a previous version of a File, then you must use `RefreshCache` API on File GW to notify any S3 changes
+- Enable **S3 Object Lock**, File GW creates new version of the object without affecting priori versions -> Compliance and auditability
+
+### Snowball
+
+- Storage Optimized, **210TB**
+- Compute Optimized, **28TB**, run EC2 instances and lambda functions at the edge
+
+Improving data transfer rates:
+
+- Perform multiple writes at one time
+- Transfer small files in batches
+- Data transfer rate is 25-40 MB/s -> Use the `Amazon S3 adapter for Snowball`, 250-400 MB/s
+
+### DMS
+
+You need to create an EC2 instance running DMS software.
+
+`Redshift`, `Kinesis Data Streams` and `OpenSearch` are **targets only**.
+
+Good things to know:
+
+- Works over VPC-peering, DX and VPN
+- Full load -> 1 time
+- Full load + CDC -> Continuous data replication
+- CDC only -> just stream changes
+- Oracle
+  - Source: Supports TDE using `BinaryReader`
+  - Target: Supports BLOBs in tables that have a primary key and TDE. You need to make sure that there is pk associated with the BLOB
+- Opensearch
+  - Target: Possible to migrate from RDS e.g. RDS MySQL
+
+Snowball + DMS:
+
+1. Use Schema Conversion Tool to extract data locally and move it to Snowball
+2. Ship snowball
+3. Snowball automatically loads data into S3
+4. DMS starts replication to the target
+
+### Cloud Adoption Readiness Tool CART
+
+- Transform your idea of moving to the cloud into a detailed plan that follows best practices
+- Works by answering a set of questions across 6 perspectives
+- Generates a report
+
+### Application Discovery Services
+
+Plan migrations by gathering on-premises info, service utilization and dependency mapping.
+
+- Agentless Discovery (Application Discovery Agentless Connector)
+  - Open Virtual Appliace (OVA) that you need to deploy on your VM host on-premise
+  - Performs VM inventory, configuration and performance history (CPU, memory and disk usage)
+  - OS agnostic
+- Agent Based discovery, get a full map of how servers are communicated
+  - System config, system performance, **running processes** and **detailed network connections between systems**
+  - Microsoft Server, Amazon Linux, Ubuntu, SUSE, Redhat...
+
+Resulting data can be exported to CSV or `AWS Migration Hub` -> data is stored in `S3` at regular intervals, you can query it with `Athena`
+
+### Application Migration Service (MGN)
+
+- Look for keyword **migrate**
+- Migrates entire VM to AWS
+- Evolution of `CloudEndure Migration` & `AWS Server Migration Service`
+- Run the **replication agent on-premises** which **continuosly replicates** your workloads to a staging environment on AWS, when you are ready to fully migrate you **cutover**
+- Minimal downtime
+
+### AWS Elastic Disaster Recovery (DRS)
+
+- Used to be named `CloudEndure Disaster Recovery`
+- Look for keyword **recover**
+- Run the **replication agent on-premises** which continuous block replicates to the staging environment
+
+### AWS Migration Evaluator
+
+- Build data driven business case for migration to AWS
+- You install `Agentless Collector` on-premises
+
+### AWS Backup
+
+- Supports **Cross-Region/Account backups**
+- You create Backup policies known as **Backup plans**
+  - Backup frequency
+  - Backup window
+  - Transition policy to cold storage
+  - Retention policy period
+- AWS **Backup Vault Lock** -> WORM, even the root user cannot delete the backups, neither alter its retention period
