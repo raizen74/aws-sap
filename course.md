@@ -978,6 +978,8 @@ To process messages in Real-time, Data Streams is much more cheap than DynamoDB 
 - **Scales automatically** based on observed throughput peak during the last 30 days
 - Pay per stream/hour and data in/out per GB
 
+Api GW has service integration with Kinesis Data Streams
+
 ### Amazon Data Firehose
 
 - Input records up to 1 MB
@@ -1485,3 +1487,148 @@ Resulting data can be exported to CSV or `AWS Migration Hub` -> data is stored i
   - Transition policy to cold storage
   - Retention policy period
 - AWS **Backup Vault Lock** -> WORM, even the root user cannot delete the backups, neither alter its retention period
+
+## VPC
+
+### VPC Peering
+
+- VPC peering can work **Cross-region/account**
+- `SGs` from **peered VPCs** can be referenced
+- Route tables -> CIDR with **longest prefix match** wins e.g. `10.0.0.77/32 to A` wins over `10.0.0.0/16 to B`
+- If **ANY** of the CIDRs in a VPC overlap, Peering does not work
+- A VPC can have **both IPv4 and IPv6 CIDRs**
+- **No edge to edge routing** applies to VPN, DX, IGW, NATGW and GW endpoints
+
+### Transit GW
+
+- Regional Service but **you can peer together Transit GW deployed in different regions**
+- Share TransitGW cross-account with `AWS RAM`
+- In the route table you can limit which VPC can talk to with other VPC
+- Supports `IP Multicast`, no other services support it
+- Instances in a VPC can access a `NAT GW`, `NLB`, `PrivateLink` and `EFS` in other VPCs attached to the Transit GW
+- You can create an **egress VPC** to give internet access to another **private VPC**. Deploy an **ENI in a private subnet of the egress VPC** and link it to the Transit GW, update the route table of the TransitGW to route traffic from the private VPC to this ENI in the egress VPC
+- You can share Transit GW through RAM
+- You can create multiple **route tables** e.g. prod, dev. each route table segregates the VPCs (TG attachments) that can route to each other
+- You can connect a `DX connect GW` to multiple `TransitGW` in different regions
+- TransitGW allows you to create **multiple VPN connections that can be aggregated** for more capacity
+- You are **billed hourly** for each peering attachment, no data processing charges
+
+### VPC Endpoints
+
+VPC Endpoints interface:
+
+- Enable `DNS hostnames` and `DNS Support` to use AWS DNS names in the route table e.g. `athena.us-east-1.amazonaws.com`
+- Can be accessed from `DX`, `VPN`, peered VPCs
+- Attach SG to the ENI
+- Corporate Data Center via DX can only access S3 **privately** using **Private VIF + Privatelink VPC Endpoints Interface**
+- A VPC in another region that has a **peering connection** can use VPC Endpoint interface to access S3
+
+VPC Endpoints GW
+
+- **only 1 per VPC**
+- `DNS resolution` must be enabled in the VPC
+- Only work to connect resources deployed in the VPC (No peering, DX or VPN)
+
+`aws:sourceVpce` targets a single vpc endpoint, `aws:sourceVpc` targets all endpoints in a VPC, `aws:SourceIp` just works for **public IPs**
+
+### PrivateLink (VPC Endpoint Services)
+
+- Most secure and scalable way of expose a service to 1000s (other accounts)
+- Does not need VPC peering, IG, NAT, route tables...
+- NLB in the Service VPC and ENI in the Customer VPC
+
+### VPN (AWS managed VPN)
+
+On-premise side:
+
+- Setup software or hardware appliance in the corporate network
+- on-premise VPN should be accessible using public IP
+
+AWS side:
+
+- Setup VGW which is a VPC level resource and attach it to the VPC
+- Setup Customer GW to point to VPN appliance
+
+2 VPN connections are created for redundancy
+
+You can use Global Accelerator
+
+You need to update the route table of the VPC subnets to point to the VGW and the route table on-premises to point to CGW
+
+**Border GW protocol**: Just need to specify the ASN (Autonomous System Number) of the VGW and CGW
+
+Site2Site VPN or DX and Internet Access:
+
+- On-premises cannot access the internet with NAT GW (Not allowed) + IGW. If you replace the NAT GW for a **self managed NAT Instance** then it's **OK**, because you manage the software
+- Other way: Instances in a private subnet CAN access the internet if you have an on-premise NAT. You don't need NATGW/
+
+`VPN CloudHub`: 1 VPC to multiple Data Centers. Can connect up to 10 CGW for each VGW, enabling communication across all the parts (hub and spoke)
+
+**Multiple VPC to a single Data Center**:
+
+- AWS recommends a separate VPN connection for each VPC, very complicated
+- Consider using Direct Connect GW
+- Or use a single `shared services VPC connected to on-premises` + `VPC Peering` and replicate the services from the corporate DC to the shared VPC or use a proxy to forward requests on-premises
+
+### Client VPN
+
+Connect from your computer using OpenVPN to your private network AWS and on-premises, uses a private ip
+
+- e.g. 2 VPCs peered and you deploy a Client VPN ENI in VPC A, you can connect and access VPC B through the peering connection
+- Same scenario but VPC A is connected to on-premises with S2S VPN, you can connect to VPC A and access on-premises
+- If you deploy Client VPN ENI in a public subnet, you have internet access
+
+So the client VPN is deployed in a subnet and all the VPC connections work for the client VPN e.g. VPC peering, DX, VPN, Transit GW...
+
+### Direct Connect
+
+- Public VIF: Connect to public AWS endpoints
+- Private VIF: Connect to resources inside a VPC (VPC Interface Endpoints, ALB, EC2...)
+- Transit VIF: Connect to resources in a VPC through TransitGW
+
+From the customer router you connect to a DX Location (AWS Direct Connect Endpoint)
+
+From DX Location you connect it to the VGW (private VIF) or public resources (public VIF)
+
+- **Dedicated connections**: You make the request directly to AWS
+- **Hosted Connections**: You make the request to AWS DX partners (50 Mbps, 100 Mbps up to 10 Gbps)
+  - Capacity can be **added or removed on demand**
+
+VPN over DX uses **Public VIF**
+
+**Link Aggregation Groups (LAG)**:
+
+- Gain speed and failover by summing existing **CGW to DX Connections** into a **logical one**
+- Can aggregate up to 4 connections, can be added over time
+- All connections in the LAG must be **dedicated** and have the **same bandwidth** and must terminate at the **same Direct Connect Endpoint**
+- You can specify a min number of connections for the LAG to function
+
+DX Gateway:
+
+- Connect DX to multiple VPC in multiple regions/accounts
+- **Private VIF**
+- Only way to connect TransitGW to DX
+
+DX GW **SiteLink**:
+
+- Allows to send data from one DX Location to another **bypassing AWS Regions**
+- Data is sent over the fastest path
+- If you have 2 Data Centers, each connected to a different DX Location, both DX Locations connected to a DXGW. Connectivity between the 2 data centers is stablished
+
+### VPC Flow Logs
+
+Destinations: S3, CW Logs, Firehose
+
+Can also capture info of AWS Managed interfaces: ELB, RDS, ElastiCache, Redshift, Workspaces, Transit GW
+
+For **streaming** analysis, `CW Logs Insights`
+
+Inbound traffic for NATGW -> if traffic is permitted by SG and NACL is possible to have inbound ACCEPT, check it by running the query of the video in CW Logs to see if the private IP of NATGW appears
+
+### Network Firewall
+
+- Protect a VPC from layer 3 to layer 7
+- Internally it uses GW LB but all managed by AWS
+- Rules can be centrally managed with `Firewall Manager` to apply them to multiple VPCs
+- Allow, Drop or Alert actions for the traffic that matches the rules
+- Rule matches can be sent to S3, CW Logs, Firehose
