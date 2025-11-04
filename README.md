@@ -44,7 +44,7 @@
   - [Snowball](#snowball)
   - [Storage](#storage)
   - [Application Discovery Service](#application-discovery-service)
-  - [Application Migration Service (MGM)](#application-migration-service-mgm)
+  - [Application Migration Service (MGN)](#application-migration-service-mgn)
   - [Migration Strategies](#migration-strategies)
   - [QuickSight enterprise edition](#quicksight-enterprise-edition)
 
