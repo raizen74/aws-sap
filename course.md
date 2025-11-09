@@ -1632,3 +1632,119 @@ Inbound traffic for NATGW -> if traffic is permitted by SG and NACL is possible 
 - Rules can be centrally managed with `Firewall Manager` to apply them to multiple VPCs
 - Allow, Drop or Alert actions for the traffic that matches the rules
 - Rule matches can be sent to S3, CW Logs, Firehose
+
+## Other Services
+
+### CI/CD
+
+`CodeCommit` can trigger a `Lambda` function and scan for **leaked credentials**.
+
+`CodeBuild` can build a Docker image and push it to `ECR`
+
+`CodePipeline` **GitHub integration**: 
+
+- **Version 1**: Enable **GitHub webhooks** that send notifications to CodePipeline whenever the repo is updated.
+- **Version 2 (NEW!)**: **CodeStar Source Connection**, through this connection any changes pushed to Github will be picked up by `CodePipeline`
+
+`CodeGuru` (ML powered):
+
+- CodeGuru Reviewer: Automated code static analysis
+- CodeGuru Profiler: Recommendations about application runtime performance. Supports apps running on AWS and **on-premises**
+
+### Alexa for Business, Lex & Connect
+
+**Alexa for Business**: increase the utilization of **meeting rooms** in the workplace
+
+**Lex**: Same tech as Alexa, speech to text and NLP recognize intent of text. Build chatbot
+
+**Connect**: You give a phone number and receive the calls then connect the calls to contact flows, virtual contact center. You can connect the call to `Lex` to recognize the intent of the call and trigger a lambda.
+
+### Kinesis Video Streams
+
+- **1 video stream per streaming device**, Kinesis Video Streams Producer library.
+- Underlying data is stored in `S3` but we have **no access to it**. If you want access to stream data you need to build a **custom solution** (the **exam can test you on this**).
+- Consumers
+  - EC2 instances for real time, **Kinesis Video Streams Parser library**
+  - Direct integration with `AWS Rekognition` for facial detection, **Face Collection**
+
+### WorkSpaces
+
+- **Linux** and Windows
+- Pricing per Hour (on-demand) or monthly subscription
+- Integration with Microsoft AD
+
+**Workspace application management (WAM)**:
+
+- Containerize your app and deploy it to all your WorkSpaces
+- Keep Apps updated with WAM, just the apps (**not the OS**)
+
+**Windows Update**:
+
+- Windows WorkSpaces has windows update **activated by default**
+- By default, WorkSpaces is configured to install software updates
+- Updates are installed during **maintenance windows** (you define them)
+  - **Always On Workspaces**: WorkSpaces always running, updates installed by default **00:00 - 04:00 Sunday**
+  - **AutoStop Workspaces**: Automatically starts the workspaces **once a month** to install updates
+  - **Manual maintenance window**: you define your windows and perform maintenance. During the window the instances are off for your users.
+
+Multi-Region Architecture:
+
+- Region A (primary) has workspaces integrated with `AWS Managed Microsoft AD`
+- Region B (failover) has workspaces integrated with `AD Connector (proxy)`. **Multi-Region AWS Managed Microsoft AD is not supported**.
+- Create **connection aliases** in both regions
+- In `Route 53`, you create a **TXT Record** (e.g. desktop.example.com) of **failover type** pointing to connection aliases.
+- The failover region will not have access to user data in the primary region -> Use `Amazon WorkDocs` for persist user data cross-region
+
+Amazon WorkSpaces IP Access Control Groups -> Like **Security Groups**
+
+### AppStream 2.0
+
+- Desktop **Apps** delivered within a Web Browser, **e.g. Blender**
+- Each app can be resource configured (CPU, RAM, GPU)
+
+### AppFarm
+
+- Test an app, mobile and web (e.g. a one published on google store) across many **real** browsers and devices
+- Automatically generates videos and logs to document the issues encountered
+- Can remotely log-in to devices for debugging
+
+### Macie
+
+- Fully managed, one click to enabled it in the S3 buckets you want
+- Notifies discoveries through `EventBridge`
+
+### SES
+
+**Configuration Sets** -> Help customize and analyze your email **send events**. 2 types:
+
+- Event Destinations
+  - Firehose: receives metrics (number of sends, deliveries, opens, clicks, complaints) for each email, you can run **analytics** with Flink or S3 + Athena
+  - SNS: Immediate feedback on bounce and **complaint information**
+- IP pool management: use IP pools to send particular types of emails e.g. 1 IP set for **transactional emails** and 1 IP set for **marketing emails**
+
+### PinPoint
+
+2-way (inbound/outbound) marketing communication service
+
+Can create segment types, **personalize messages** and delivery schedules
+
+Possibility to receive replies
+
+Integrations for stream events (**TEXT_SUCCESS**, **TEXT_DELIVERED**...): SNS, Firehose, CW logs
+
+### EC2 Image Builder
+
+- Automate the creation, mantain, validate and test **EC2 AMIs** or **Container Images**
+- Can publish to multiple accounts and regions
+- How it works:
+    1. The image builder service creates a **Builder EC2 Instace** based on your builder config
+    2. Then it creates an AMI from this Builder EC2 Instace
+    3. Creates an EC2 from the AMI
+    4. Runs a test suit against the EC2
+    5. Distributes the AMI in the regions/accounts you have defined
+
+Architecture: `Cloudformation` triggers EC2 Image Builder to build the AMI and then triggers a rolling update to change the AMI of the running instances
+
+### IoT
+
+**Topics** (e.g. receive MQTT message), **rules** and **actions** (integrations with other Services). Important integration is `Firehose`
