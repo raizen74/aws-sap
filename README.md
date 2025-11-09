@@ -44,7 +44,7 @@
   - [Snowball](#snowball)
   - [Storage](#storage)
   - [Application Discovery Service](#application-discovery-service)
-  - [Application Migration Service (MGM)](#application-migration-service-mgm)
+  - [Application Migration Service (MGN)](#application-migration-service-mgn)
   - [Migration Strategies](#migration-strategies)
   - [QuickSight enterprise edition](#quicksight-enterprise-edition)
 
@@ -492,7 +492,7 @@ The collected data is retained in encrypted format in an AWS Application Discove
 
 !["Application Discovery Service"](ams.jpg)
 
-## Application Migration Service (MGM)
+## Application Migration Service (MGN)
 
 AWS Application Migration Service (AWS MGN) is the primary migration service recommended to **lift and shift** your applications to AWS. Customers considering **CloudEndure Migration** are encouraged to use AWS Application Migration Service for future migrations.
 
