@@ -1,5 +1,127 @@
 # SAP Udemy Course
 
+- [SAP Udemy Course](#sap-udemy-course)
+  - [Identity and Federation](#identity-and-federation)
+  - [Security](#security)
+    - [CloudTrail](#cloudtrail)
+    - [KMS](#kms)
+    - [Parameter Store](#parameter-store)
+    - [Secrets Manager](#secrets-manager)
+    - [RDS Security](#rds-security)
+    - [SSL](#ssl)
+    - [CloudHSM](#cloudhsm)
+    - [S3 Security](#s3-security)
+    - [WebACL (layer 7)](#webacl-layer-7)
+    - [Firewall Manager](#firewall-manager)
+    - [Inspector](#inspector)
+    - [Config](#config)
+    - [AWS Managed Logs Destinations](#aws-managed-logs-destinations)
+    - [GuardDuty](#guardduty)
+    - [EC2 Instance Connect](#ec2-instance-connect)
+    - [Security Hub](#security-hub)
+    - [Detective](#detective)
+  - [Compute and Load Balancing](#compute-and-load-balancing)
+    - [EC2](#ec2)
+    - [ASG](#asg)
+    - [Spot fleets](#spot-fleets)
+    - [Containers](#containers)
+    - [ECR](#ecr)
+    - [EKS](#eks)
+    - [Amazon ECS Anywhere](#amazon-ecs-anywhere)
+    - [Amazon EKS Anywhere](#amazon-eks-anywhere)
+    - [Lambda](#lambda)
+    - [ELB](#elb)
+    - [API GW](#api-gw)
+    - [AppSync](#appsync)
+    - [Route 53](#route-53)
+    - [Global Accelerator](#global-accelerator)
+    - [Outposts](#outposts)
+  - [Storage](#storage)
+    - [EBS](#ebs)
+    - [EFS](#efs)
+    - [S3](#s3)
+    - [FSx](#fsx)
+    - [DataSync](#datasync)
+    - [Data Exchange](#data-exchange)
+    - [Transfer Family](#transfer-family)
+  - [Caching](#caching)
+    - [CloudFront](#cloudfront)
+    - [ElastiCache](#elasticache)
+  - [Databases](#databases)
+    - [DynamoDB](#dynamodb)
+    - [OpenSearch](#opensearch)
+    - [RDS](#rds)
+    - [Aurora](#aurora)
+    - [Aurora Serverless](#aurora-serverless)
+  - [Service Communication](#service-communication)
+    - [SNS](#sns)
+  - [Data Engineering](#data-engineering)
+    - [Kinesis Data Streams](#kinesis-data-streams)
+    - [Amazon Data Firehose](#amazon-data-firehose)
+    - [Managed Service for Apache Flink](#managed-service-for-apache-flink)
+    - [MSK](#msk)
+    - [Batch](#batch)
+    - [EMR](#emr)
+    - [Redshift](#redshift)
+    - [DocumentDB](#documentdb)
+    - [TimeStream](#timestream)
+    - [Athena](#athena)
+    - [QuickSight](#quicksight)
+  - [Monitoring](#monitoring)
+    - [CW Metrics](#cw-metrics)
+    - [CW Alarm](#cw-alarm)
+    - [CW Dashboards](#cw-dashboards)
+    - [Synthetic Canaries](#synthetic-canaries)
+    - [CW Logs](#cw-logs)
+    - [CW Agent](#cw-agent)
+    - [EventBridge](#eventbridge)
+  - [Deployment](#deployment)
+    - [Beanstalk](#beanstalk)
+    - [CodeDeploy](#codedeploy)
+    - [CloudFormation](#cloudformation)
+    - [SSM](#ssm)
+  - [Cost Control](#cost-control)
+    - [Trusted Advisor](#trusted-advisor)
+    - [Service Quotas](#service-quotas)
+    - [Savings plans](#savings-plans)
+    - [S3 Requester pays](#s3-requester-pays)
+    - [Budgets](#budgets)
+    - [Cost Explorer](#cost-explorer)
+    - [Compute optimizer](#compute-optimizer)
+    - [Reserved instances](#reserved-instances)
+  - [Migration](#migration)
+    - [Storage GW](#storage-gw)
+    - [Snowball](#snowball)
+    - [DMS](#dms)
+    - [Cloud Adoption Readiness Tool CART](#cloud-adoption-readiness-tool-cart)
+    - [Application Discovery Services](#application-discovery-services)
+    - [Application Migration Service (MGN)](#application-migration-service-mgn)
+    - [AWS Elastic Disaster Recovery (DRS)](#aws-elastic-disaster-recovery-drs)
+    - [AWS Migration Evaluator](#aws-migration-evaluator)
+    - [AWS Backup](#aws-backup)
+  - [VPC](#vpc)
+    - [VPC Peering](#vpc-peering)
+    - [Transit GW](#transit-gw)
+    - [VPC Endpoints](#vpc-endpoints)
+    - [PrivateLink (VPC Endpoint Services)](#privatelink-vpc-endpoint-services)
+    - [VPN (AWS managed VPN)](#vpn-aws-managed-vpn)
+    - [Client VPN](#client-vpn)
+    - [Direct Connect](#direct-connect)
+    - [VPC Flow Logs](#vpc-flow-logs)
+    - [Network Firewall](#network-firewall)
+  - [Other Services](#other-services)
+    - [CI/CD](#cicd)
+    - [Alexa for Business, Lex \& Connect](#alexa-for-business-lex--connect)
+    - [Kinesis Video Streams](#kinesis-video-streams)
+    - [WorkSpaces](#workspaces)
+    - [AppStream 2.0](#appstream-20)
+    - [AppFarm](#appfarm)
+    - [Macie](#macie)
+    - [SES](#ses)
+    - [PinPoint](#pinpoint)
+    - [EC2 Image Builder](#ec2-image-builder)
+    - [IoT](#iot)
+
 ## Identity and Federation
 
 IAM Access Advisor: See permissions granted and when last accessed
@@ -39,7 +161,14 @@ AD:
 - AD Connector does not work with SQL Server
 - Simple AD: Does not support MFA, SQL Server and SSO
 
+SAML federation:
+
+!["SAML identity federation"](SAML.webp)
+
 Organizations:
+
+!["Organizations"](organizations.webp)
+!["SCP"](SCP.webp)
 
 - Member accounts created from the Management Account, ship with the `OrganizationAccountAccessRole` already created to be assumed (AssumeRole API) by the Management Account for Operations. If you invite an account to join to the Org, you must **manually create this OrganizationAccountAccessRole**
 - Organizations All features:
@@ -60,9 +189,14 @@ Control Tower Account Factory leverages Service Catalog under the hood
 
 Resource Access Manager (RAM):
 
+- When you share resources in your organization, AWS RAM doesn't send invitations to principals. Principals in your organization gain access to shared resources without exchanging invitations.
 - You can **share a subnet with multiple accounts**, each account can only view its resources. You can access private IPs of EC2 from another account, you can also **reference SGs from other accounts**
 - You can **share Prefix Lists and reference them in SGs**, much easy than reference the CIDR block in every SG (very mantainable)
 - You can **share Route 53 outbound Resolver rules** and reference them in resolver outbound endpoint from another account
+
+Centralized security -> All Users are created in Account B
+
+!["Centralized security"](centralized-identity-account.webp)
 
 ## Security
 
@@ -203,6 +337,13 @@ S3 Multi-Region Access Points:
 - **Bi-directional Cross-Region Replication** to keep data in sync
 - **Failover control**, active-active or active-passive. Active-Active is for when you want to write to multiple regions at the same time.
 
+**Block Public Access** Feature:
+
+- `IgnorePublicAcls` option to TRUE causes Amazon S3 to ignore all public ACLs on a bucket and any objects that it contains
+- `BlockPublicAcls` – PUT bucket ACL and PUT objects requests are blocked if granting public access.
+- `BlockPublicPolicy` – Rejects requests to PUT a bucket policy if granting public access.
+- `RestrictPublicBuckets` – Restricts access to principles in the bucket owners’ AWS account.
+
 ### WebACL (layer 7)
 
 - **ALB**
@@ -219,7 +360,7 @@ Web Access Control Lists:
 
 Rule Actions: ALLOW, BLOCK, COUNT, CAPTCHA, CHALLENGE
 
-**Managed Rules**:
+**Managed Rules**, an easy way to set this up is to subscribe to the AWS Managed Rules via the **marketplace**:
 
 - **Baseline** rule groups
 - **Use Case specific** rule groups: WindowsRuleSet...
@@ -475,7 +616,7 @@ Retrieve data in **real-time with WebSocket** or **MQTT on WebSocket**
 
 Can retrieve data from Aurora, OpenSearch, DynamoDB, Lambda, HTTP endpoints...
 
-Cognito integration -> In the **GraphQL Schema** you specify security for Cognito Groups
+Cognito integration -> In the **GraphQL Schema** you specify security for `Cognito Groups`. `Amazon Cognito Groups` can be used to create collections of users to manage their permissions or to represent different types of users. You can assign an AWS Identity and Access Management (IAM) role to a group to define the permissions for members of a group.
 
 ### Route 53
 
@@ -529,6 +670,8 @@ Health Checks can trigger CW Alarms
 - Setup Inbound Endpoint: From the DNS resolver on-premises you point to the IP addresses of the **Resolver Inbound endpoint**. The resolver inbound endpoint is linked to the Route 53 resolver which queries the Private Hosted Zone
 - Outbound Endpoint: Conditionally forward DNS queries to on-premises resolvers, use **Forwarding Rules**
 - Setup Outbound Endpoint: A private EC2 queries Route 53 resolver which in turn queries the Outbound endpoint **forwarding rules** which point to the on-premises DNS resolver.
+
+!["Inbound resolver endpoint"](inbound-resolver-endpoint.webp)
 
 These endpoints can be associated with **1 or more VPC in the same Region**. Create them in 2 AZ for HA. Each endpoint supports 10000 queries/s per IP
 
@@ -665,6 +808,8 @@ Limits per prefix per bucket:
   - Prefix aggregation
   - Data available for **15 months**
 
+!["S3 lifecycle rules"](s3-lifecycle.webp)
+
 ### FSx
 
 FSx for Windows:
@@ -716,6 +861,8 @@ Good To KNOW:
 - FSx for Lustre Data Lazy Loading: Data on S3 can be lazy loaded in the app, you do not need to download everything before start the processing, data is loaded on demand (less requests and cheaper)
 
 ### DataSync
+
+!["DataSync"](datasync.webp)
 
 Synchronize data from NFS and SMB protos of on-premise servers with DataSync agent (up to 10 GB/s). To move data via DX you have 2 options:
 
@@ -848,6 +995,8 @@ DAX
 
 ### RDS
 
+!["RDS"](RDS.webp)
+
 - Launched in a VPC, control access via SG
 - Storage by **EBS**, can increase volume size with auto-scaling
 - Backups: Automatic with PIR. They expire.
@@ -874,6 +1023,8 @@ RDS Proxy for lambda
 - Can be public or private (lambda in VPC)
 
 ### Aurora
+
+!["Aurora"](aurora.webp)
 
 - Automatically grows up to 128 TB, 6 copies of data, multi-AZ
 - Up to 15 RR, single read endpoint
@@ -930,6 +1081,8 @@ RDS Proxy for Aurora
 
 Aurora Global
 
+!["Aurora Global"](aurora-global.webp)
+
 - You define a primary region (write/read)
 - **Up to 10** secondary (read-only) regions, **replication lag < 1 second**
 - Up to 16 RR per secondary region
@@ -985,7 +1138,7 @@ Api GW has service integration with Kinesis Data Streams
 - Input records up to 1 MB
 - No Data Storage like Data Streams
 - Writes data in batches -> near real time
-- 3rd party integrations: Datadog, splunk, mongoDB, New Relic...
+- **3rd party integrations: Datadog, splunk, mongoDB, New Relic**...
 - Custom destinations: HTTP
 - Source Records can be stored in S3
 - If you have a **lambda transform failure or a delivery failure**, you can store the data in S3
@@ -1375,6 +1528,8 @@ You can renew RIs by **queuying them**: Purchase RI whenever the previous one ex
 
 ## Migration
 
+!["Migration"](migration.webp)
+
 - Relocate: A special case is Relocate using `VMware Cloud on AWS`, where you literally move your entire VMware software-defined data center (vSphere hosts, vCenter, NSX, vSAN) to run on AWS infrastructure. Your VMs run on AWS hardware but are managed with the exact same VMware tools you use on-premises. The primary service for this is AWS `Application Migration Service (MGN)`, which continuously replicates source servers (physical, virtual, or cloud) into ready-to-launch AMIs in AWS.
 - Rehost: Don't use cloud optimizations, app migrated as is. **Application Migration Service**
 - Replatform: database to RDS e.g. on-premise PostgreSQL to RDS Postgres, app to Beanstalk. Leverage fully managed, serverless, cloud optimizations
@@ -1449,10 +1604,14 @@ Snowball + DMS:
 
 Plan migrations by gathering on-premises info, service utilization and dependency mapping.
 
+• Agentless discovery – Identifies VMs running on `VMware`.
+• Agent-based discovery – Used for physical servers and VMs running on `Hyper-V`.
+
 - Agentless Discovery (Application Discovery Agentless Connector)
   - Open Virtual Appliace (OVA) that you need to deploy on your VM host on-premise
   - Performs VM inventory, configuration and performance history (CPU, memory and disk usage)
   - OS agnostic
+  - You cannot use the agentless connector on **physical servers or Hyper-V VMs**.
 - Agent Based discovery, get a full map of how servers are communicated
   - System config, system performance, **running processes** and **detailed network connections between systems**
   - Microsoft Server, Amazon Linux, Ubuntu, SUSE, Redhat...
@@ -1525,6 +1684,8 @@ VPC Endpoints interface:
 
 VPC Endpoints GW
 
+!["GW Endpoint"](gw-endpoint.webp)
+
 - **only 1 per VPC**
 - `DNS resolution` must be enabled in the VPC
 - Only work to connect resources deployed in the VPC (No peering, DX or VPN)
@@ -1536,6 +1697,8 @@ VPC Endpoints GW
 - Most secure and scalable way of expose a service to 1000s (other accounts)
 - Does not need VPC peering, IG, NAT, route tables...
 - NLB in the Service VPC and ENI in the Customer VPC
+
+!["Endpoint Service"](endpoint-service.webp)
 
 ### VPN (AWS managed VPN)
 
@@ -1584,15 +1747,14 @@ So the client VPN is deployed in a subnet and all the VPC connections work for t
 
 - Public VIF: Connect to public AWS endpoints
 - Private VIF: Connect to resources inside a VPC (VPC Interface Endpoints, ALB, EC2...)
-- Transit VIF: Connect to resources in a VPC through TransitGW
+- Transit VIF: Connect to resources in a VPC through `TransitGW`
 
 From the customer router you connect to a DX Location (AWS Direct Connect Endpoint)
 
 From DX Location you connect it to the VGW (private VIF) or public resources (public VIF)
 
 - **Dedicated connections**: You make the request directly to AWS
-- **Hosted Connections**: You make the request to AWS DX partners (50 Mbps, 100 Mbps up to 10 Gbps)
-  - Capacity can be **added or removed on demand**
+- **Hosted Connections**: You make the request to AWS DX partners (50 Mbps, 100 Mbps up to 10 Gbps). Capacity can be **added or removed on demand**
 
 VPN over DX uses **Public VIF**
 
@@ -1603,17 +1765,31 @@ VPN over DX uses **Public VIF**
 - All connections in the LAG must be **dedicated** and have the **same bandwidth** and must terminate at the **same Direct Connect Endpoint**
 - You can specify a min number of connections for the LAG to function
 
-DX Gateway:
+DX Gateway (Multi Region/Account):
+
+!["DX Gateway"](DX-GW.webp)
 
 - Connect DX to multiple VPC in multiple regions/accounts
-- **Private VIF**
+- **Private VIF** for VGW, **Transit VIF** for TransitGW
 - Only way to connect TransitGW to DX
+
+For connecting DX to **multi-Region VPCs**, use `private VIF`:
+
+!["DX multiregion VPCs"](DX-multiRegion.webp)
+
+For connecting DX to multiple VPCs in the **same Region** its better to use a `DXGW + TransitGW`:
+
+!["Transit GW"](transit-gw.webp)
 
 DX GW **SiteLink**:
 
 - Allows to send data from one DX Location to another **bypassing AWS Regions**
 - Data is sent over the fastest path
 - If you have 2 Data Centers, each connected to a different DX Location, both DX Locations connected to a DXGW. Connectivity between the 2 data centers is stablished
+
+Resilient DX Connections: Use multiple DX attached to the same VGW
+
+!["DX Redundancy"](DX-redundancy.webp)
 
 ### VPC Flow Logs
 
